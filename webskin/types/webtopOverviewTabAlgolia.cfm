@@ -55,7 +55,6 @@
 	<p><a href='#application.fapi.getLink(type="alContentType", view="ajaxPush", urlParameters="pushtype=#stObj.typename#&pushID=#stObj.objectid#")#' onclick="$j(this).find('.info').remove().end().prepend('<i class=\'fa fa-spinner fa-spin info\'></i> '); $j.ajax({ url:this.href, dataType:'json', success:function(data){ $j(this).find('.fa').remove().end().append(' <span class=\'info\' style=\'text-decoration:none;cursor:default;'+(data.success ? 'color:green;' : 'color:red;')+'\'>'+data.message+'</span>'); }, context:this }); return false;">Push update to Algolia</a></p>
 </cfoutput></ft:field>
 
-<cfset stResult = application.fc.lib.cloudsearch.search(typename=stObj.typename,conditions=[{ "property"="objectid", "term"=stObj.objectid }]) />
 <cfoutput>
 	<h2>Label Search</h2>
 	<div id="label_hits"></div>

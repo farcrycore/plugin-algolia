@@ -107,15 +107,16 @@
 					logUploadMessage(JSON.stringify(data.error));
 					status = "stopped";
 				}
-				else if (data.more) {
+				else {
 					logUploadMessage(data.result);
 
-					setTimeout(runUpload, 1);
-				}
-				else {
-					logUploadMessage("no more records");
-					logUploadMessage("Finished");
-					status = "stopped";
+					if (data.more) {
+						setTimeout(runUpload, 1);
+					}
+					else {
+						logUploadMessage("Finished");
+						status = "stopped";
+					}
 				}
 			});
 		}

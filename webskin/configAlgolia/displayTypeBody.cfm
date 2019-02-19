@@ -1,4 +1,5 @@
 <cfsetting enablecfoutputonly="true">
+<!--- @@displayName: Search results --->
 <!--- @@viewStack: any --->
 
 <cfimport taglib="/farcry/core/tags/webskin" prefix="skin" />
@@ -15,6 +16,7 @@
 </cfoutput></skin:htmlHead>
 
 <cfoutput>
+	<div id="query"></div>
 	<div id="hits"></div>
 	<script>
 		const search = instantsearch({
@@ -30,6 +32,20 @@
 				filters: '#baseFilter#'
 			})
 		);
+
+			search.addWidget(
+				instantsearch.widgets.searchBox({
+					container: "##query",
+					placeholder: "",
+					poweredBy: false,
+					reset: false,
+					magnifier: false,
+					loadingIndicator: true,
+					wrapInput: false,
+					autofocus: "auto",
+					searchOnEnterKeyPressOnly: false
+				})
+			);
 
 		search.addWidget(
 			instantsearch.widgets.hits({

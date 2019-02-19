@@ -1,4 +1,4 @@
-component extends="farcry.core.packages.forms.forms" key="algolia" {
+component extends="farcry.core.packages.forms.forms" key="algolia" displayName="Algolia Search" {
 
 	property name="applicationID" type="string" required="false"
 		ftSeq="1" ftWizardStep="" ftFieldset="" ftLabel="Application ID"
@@ -58,7 +58,7 @@ component extends="farcry.core.packages.forms.forms" key="algolia" {
 				", { }, { datasource=application.dsn_read });
 				queryExecute("
 					ALTER TABLE #arguments.typename#
-					DROP COLUMN `inc`
+					DROP COLUMN inc
 				", { }, { datasource=application.dsn_read });
 				break;
 		}		

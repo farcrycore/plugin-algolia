@@ -15,7 +15,10 @@ component {
 				AND arguments.adminAPIKey neq ""
 				AND arguments.queryAPIKey neq ""
 				AND stValidation.valid;
-			this.indexConfig = stValidation.value;
+
+			if (stValidation.valid) {
+				this.indexConfig = stValidation.value;
+			}
 		}
 
 		return this.searchEnabled;
@@ -114,8 +117,8 @@ component {
 		return stResult;
 	}
 
-	private struct function validateSettingsAttributesForFaceting(required any attributesForFaceting) {
-		var stResult = { valid: true, details: [], value: ["filterOnly(status)","filterOnly(publishdate)","filterOnly(expirydate)"] };
+	private struct function validateSettingsAttributesForFaceting(any attributesForFaceting=["filterOnly(status)","filterOnly(publishdate)","filterOnly(expirydate)"]) {
+		var stResult = { valid: true, details: [], value: [] };
 		var i = 0;
 
 		if (not isArray(arguments.attributesForFaceting)) {
@@ -149,7 +152,7 @@ component {
 		return stResult;
 	}
 
-	private struct function validateSettingsOrdering(required any ordering) {
+	private struct function validateSettingsOrdering(any ordering=[]) {
 		var stResult = { valid: true, details: [], value: [] };
 
 		if (not isArray(arguments.ordering)) {
@@ -284,6 +287,14 @@ component {
 		if (not structKeyExists(stResult.value, "publishDate")) {
 			stResult.value["publishdate"] = { "from":"datetimeCreated", "type": "datetime" };
 		}
+		if (not structKeyExists(stResult.value, "publishDateLabel")) {
+			if (structKeyExists(application.stCOAPI[typename].stProps, "publishDate")) {
+				stResult.value["publishdatelabel"] = { "from":"publishDate", "type": "dateasstring" };
+			}
+			else {
+				stResult.value["publishdatelabel"] = { "from":"datetimeCreated", "type": "dateasstring" };
+			}
+		}
 		if (not structKeyExists(stResult.value, "expiryDate")) {
 			stResult.value["expirydate"] = { "value":"-1" };
 		}
@@ -327,10 +338,10 @@ component {
 		}
 
 		// add missing values
-		if (not structKeyExists(stResult.value, "from")
-			structKeyExists(application.stCOAPI[arguments.typename].stProps, arguments.property)) {
-
-			stResult.value["from"] = arguments.property;
+		if (not structKeyExists(stResult.value, "from")) {
+			if (structKeyExists(application.stCOAPI[arguments.typename].stProps, arguments.property)) {
+				stResult.value["from"] = arguments.property;
+			}
 		}
 		if (not structKeyExists(stResult.value, "type") and not structKeyExists(stResult.value, "processFn") and not structKeyExists(stResult.value, "value")) {
 			oType = application.fapi.getContentType(arguments.typename);

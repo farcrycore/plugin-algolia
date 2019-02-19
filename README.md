@@ -1,6 +1,14 @@
 # Algolia Plugin
 Implements site search using the Algolia service
 
+## Setup
+
+Add this to your nginx config:
+
+    location /algolia {
+        alias /var/www/farcry/plugins/algolia/www;
+    }
+
 ## Configuration
 
 This plugin is configured by setting a JSON packet in the `algolia.indexConfig`config. Typically this would be set in `_serverSpecificVarsAfterInit.cfm`. For example:
