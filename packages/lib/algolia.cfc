@@ -686,8 +686,11 @@ component {
 	// All of these functions should accept a Java string buffer "out" and write the value to that. This
 	// ensures that weird CFML JSON serialization bugs won't cause issues down the line.
 	public void function processDateTime(required any out, required struct stObject, required struct propertyConfig) {
-		if (isDate(arguments.stObject[arguments.propertyConfig.from])) {
-			arguments.out.append(numberFormat(round(arguments.stObject[arguments.propertyConfig.from].getTime() / 1000), "0"));
+		var value = arguments.stObject[arguments.propertyConfig.from];
+
+		if (isDate(value)) {
+			value = dateAdd("s", 1, dateAdd("s", -1, value));
+			arguments.out.append(numberFormat(round(value.getTime() / 1000), "0"));
 		}
 		else {
 			arguments.out.append("-1")

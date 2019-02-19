@@ -39,7 +39,7 @@
 		<cfargument name="user" type="string" required="true" />
 		<cfargument name="auditNote" type="string" required="true" />
 
-		<cfif application.fc.lib.algolia.isIndexable(stProps)>
+		<cfif application.fc.lib.algolia.isIndexable(arguments.stObject)>
 			<cfset application.fc.lib.algolia.importIntoIndex(stObject=arguments.stObject, operation="deleted") />
 		</cfif>
 	</cffunction>
