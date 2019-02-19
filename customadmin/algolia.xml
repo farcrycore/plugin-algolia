@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<webtop>
+	<section mergeType="merge" id="admin">
+		<subsection mergeType="merge" id="general">
+			<menu sequence="40" mergeType="merge" id="algoliamenu" label="Algolia" labelType="value">
+				<menuitem sequence="10" mergeType="merge" id="configAlgolia_status" label="Algolia Status" type="configAlgolia" />
+			</menu>
+		</subsection>
+	</section>
+</webtop>
