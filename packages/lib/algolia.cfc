@@ -8,7 +8,7 @@ component {
 		string indexConfig = application.fapi.getConfig("algolia", "indexConfig")
 	) {
 		if (not structKeyExists(this, "searchEnabled")) {
-			var stValidation = validateConfig(arguments.indexConfig);
+			var stValidation = validateConfig(arguments.indexName, arguments.indexConfig);
 
 			this.searchEnabled = arguments.applicationID neq ""
 				AND arguments.indexName neq ""
@@ -18,42 +18,86 @@ component {
 
 			if (stValidation.valid) {
 				this.indexConfig = stValidation.value;
+
+				var indexName = "";
+				var typename = "";
+
+				this.indexableTypes = {};
+
+				for (indexName in stValidation.value) {
+					if (not stValidation.value[indexName].replica) {
+						for (typename in stValidation.value[indexName].types) {
+							if (not structKeyExists(this.indexableTypes, typename)) {
+								this.indexableTypes[typename] = {};
+							}
+							this.indexableTypes[typename][indexName] = stValidation.value[indexName].types[typename];
+						}
+					}
+				}
 			}
 		}
+
+		this.typeSetup = {};
 
 		return this.searchEnabled;
 	}
 
-	public struct function validateConfig(string indexConfig = application.fapi.getConfig("algolia", "indexConfig")) {
-		if (arguments.indexConfig eq "") {
-			return { valid: false, details: ["No configuration"] };
-		}
+	public struct function validateConfig(
+		string indexName=application.fapi.getConfig("algolia", "indexName"),
+		any indexConfig=application.fapi.getConfig("algolia", "indexConfig")
+	) {
+		if (isSimpleValue(arguments.indexConfig)) {
+			if (arguments.indexConfig eq "") {
+				return { valid: false, details: ["No configuration"] };
+			}
+			if (not isJSON(arguments.indexConfig)) {
+				return { valid: false, details: ["Not valid JSON"] };
+			}
 
-		if (not isJSON(arguments.indexConfig)) {
-			return { valid: false, details: ["Not valid JSON"] };
+			arguments.indexConfig = deserializeJSON(arguments.indexConfig);
 		}
 
 		var stResult = { valid: true, details: [], value: {} };
-		var stIndexConfig = deserializeJSON(arguments.indexConfig);
 		var stSub = {};
+		var key = "";
+		var i = 0;
+
+		stResult.value[arguments.indexName] = {
+			"replica": false
+		};
 
 		// validate settings
-		if (structKeyExists(stIndexConfig, "settings")) {
-			stSub = validateSettings(stIndexConfig.settings);
+		if (structKeyExists(arguments.indexConfig, "settings")) {
+			stSub = validateSettings(arguments.indexConfig.settings);
 			stResult.valid = stResult.valid AND stSub.valid;
 			arrayAppend(stResult.details, stSub.details, true);
-			stResult.value["settings"] = stSub.value;
+			stResult.value[arguments.indexName]["settings"] = stSub.value;
 		}
 		else {
-			stResult.value["settings"] = validateSettings({}).value;
+			stResult.value[arguments.indexName]["settings"] = validateSettings({}).value;
 		}
 
 		// validate config.types
-		if (structKeyExists(stIndexConfig, "types")) {
-			stSub = validateConfigTypes(stIndexConfig.types);
+		if (structKeyExists(arguments.indexConfig, "types")) {
+			stSub = validateConfigTypes(arguments.indexConfig.types);
 			stResult.valid = stResult.valid AND stSub.valid;
 			arrayAppend(stResult.details, stSub.details, true);
-			stResult.value["types"] = stSub.value;
+			stResult.value[arguments.indexName]["types"] = stSub.value;
+		}
+
+		// process replicas and alternate indexes
+		if (structKeyExists(arguments.indexConfig, "alternateIndexes")) {
+			for (key in arguments.indexConfig.alternateIndexes) {
+				stSub = validateConfig(arguments.indexName & "_" & key, arguments.indexConfig.alternateIndexes[key]);
+				stResult.valid = stResult.valid AND stSub.valid;
+				for (i=1; i<=arrayLen(stSub.details); i++) {
+					arrayAppend(stResult.details, key & "." & stSub.details[i]);
+				}
+				structAppend(stResult.value, stSub.value);
+			}
+		}
+		if (isDefined("stResult.value.#arguments.indexName#.settings.ordering")) {
+			structAppend(stResult.value, expandOrdering(indexName=arguments.indexName, indexConfig=stResult.value[arguments.indexName]), true);
 		}
 
 		return stResult;
@@ -98,7 +142,6 @@ component {
 		stResult.valid = stResult.valid AND stSub.valid;
 		arrayAppend(stResult.details, stSub.details, true);
 		stResult.value["ordering"] = stSub.value;
-		structAppend(stResult.value, expandOrdering(stResult.value["ordering"], arguments.settings), true);
 
 		return stResult;
 	}
@@ -152,20 +195,21 @@ component {
 		return stResult;
 	}
 
-	private struct function validateSettingsOrdering(any ordering=[]) {
+	private struct function validateSettingsOrdering(struct ordering={}) {
 		var stResult = { valid: true, details: [], value: [] };
+		var key = "";
 
-		if (not isArray(arguments.ordering)) {
+		if (not isStruct(arguments.ordering)) {
 			stResult.valid = false;
-			arrayAppend(stResult.details, "settings.ordering is not an array");
+			arrayAppend(stResult.details, "settings.ordering is not a struct");
 			return stResult;
 		}
 
 		stResult.value = arguments.ordering;
-		for (i=1; i<=arrayLen(arguments.ordering); i++) {
-			if (not reFind("^[\w_]+ (asc|desc)(,[\w_]+ (asc|desc))*$", arguments.ordering[i])) {
+		for (key in arguments.ordering) {
+			if (not reFind("^[\w_]+ (asc|desc)(,[\w_]+ (asc|desc))*$", arguments.ordering[key])) {
 				stResult.valid = false;
-				arrayAppend(stResult.details, "settings.ordering[#i#] is not a valid order string");
+				arrayAppend(stResult.details, "settings.ordering.#key#. is not a valid order string");
 				break;
 			}
 		}
@@ -173,31 +217,50 @@ component {
 		return stResult;
 	}
 
-	private struct function expandOrdering(required array ordering, required any settings) {
-		var indexName = application.fapi.getConfig("algolia", "indexName");
+	private struct function expandOrdering(required string indexName, required struct indexConfig) {
 		var i = 0;
 		var replicaName = "";
 		var orderingValue = "";
-		var stResult = {
-			"replicas": [],
-			"replica_settings": {}
-		};
+		var stResult = {};
 
-		for (i=1; i<=arrayLen(arguments.ordering); i++) {
-			replicaName = indexName & "_" & lcase(reReplace(arguments.ordering[i], "[^\w_]+", "_", "ALL"));
-			arrayAppend(stResult["replicas"], replicaName);
+		arguments.indexConfig.settings["replicas"] = [];
 
-			stResult["replica_settings"][replicaName] = {
-				"ranking": [],
-				"attributesForFaceting": arguments.settings.attributesForFaceting
+		for (key in arguments.indexConfig.settings.ordering) {
+			replicaName = listAppend(indexName, key, "_");
+			stResult[replicaName] = {
+				"settings": duplicate(arguments.indexConfig.settings),
+				"replica": true
 			};
-			for (orderValue in listToArray(arguments.ordering[i])) {
+			if (structKeyExists(stResult[replicaName], "replicas")) {
+				structDelete(stResult[replicaName], "replicas");
+			}
+			if (structKeyExists(stResult[replicaName], "ordering")) {
+				structDelete(stResult[replicaName], "ordering");
+			}
+
+			stResult[replicaName]["settings"]["ranking"] = [];
+			for (orderValue in listToArray(arguments.indexConfig.settings.ordering[key])) {
 				switch (listLast(orderValue, " ")) {
-					case "asc": arrayAppend(stResult["replica_settings"][replicaName].ranking, "asc(#lcase(listFirst(orderValue, ' '))#)"); break;
-					case "desc": arrayAppend(stResult["replica_settings"][replicaName].ranking, "desc(#lcase(listFirst(orderValue, ' '))#)"); break;
+					case "asc": arrayAppend(stResult[replicaName]["settings"]["ranking"], "asc(#lcase(listFirst(orderValue, ' '))#)"); break;
+					case "desc": arrayAppend(stResult[replicaName]["settings"]["ranking"], "desc(#lcase(listFirst(orderValue, ' '))#)"); break;
+					default: break;
 				}
 			}
-			arrayAppend(stResult["replica_settings"][replicaName].ranking, listToArray("typo,geo,words,filters,proximity,attribute,exact,custom"), true);
+			arrayAppend(stResult[replicaName].settings.ranking, listToArray("typo,geo,words,filters,proximity,attribute,exact,custom"), true);
+
+			if (key eq "default") {
+				arguments.indexConfig.settings["ranking"] = stResult[replicaName].settings.ranking;
+				structDelete(stResult, replicaName);
+			}
+			else {
+				arrayAppend(arguments.indexConfig.settings["replicas"], replicaName);
+			}
+		}
+
+		structDelete(arguments.indexConfig, "ordering");
+
+		if (not structKeyExists(arguments.indexConfig.settings, "ranking")) {
+			arguments.indexConfig.settings["ranking"] = listToArray("typo,geo,words,filters,proximity,attribute,exact,custom");
 		}
 
 		return stResult;
@@ -367,55 +430,60 @@ component {
 		return stResult;
 	}
 
-	public struct function diffAlgoliaSettings() {
-		var indexName = application.fapi.getConfig("algolia", "indexName");
-		var indexConfig = getExpandedConfig();
-		var algoliaSettings = getSettings();
+	public struct function diffAlgoliaSettings(
+		string indexName=application.fapi.getConfig("algolia", "indexName"),
+		struct indexConfig=getExpandedConfig(arguments.indexName)
+	) {
+		var algoliaSettings = getSettings(arguments.indexName);
 		var stResult = {};
 		var i = 0;
+		var replicaName = "";
+		var stDiff = {};
+		var key = "";
 
-		if (not structKeyExists(algoliaSettings, "attributesForFaceting") OR serializeJSON(indexConfig.settings.attributesForFaceting) neq serializeJSON(algoliaSettings.attributesForFaceting)) {
-			stResult["attributesForFaceting"] = true;
-		}
+		for (replicaName in arguments.indexConfig) {
+			algoliaSettings = getSettings(replicaName);
 
-		if (arrayLen(indexConfig.settings.replicas) and (not structKeyExists(algoliaSettings, "replicas") OR serializeJSON(indexConfig.settings.replicas) neq serializeJSON(algoliaSettings.replicas))) {
-			stResult["ordering"] = true;
+			if (not structKeyExists(algoliaSettings, "attributesForFaceting") OR serializeJSON(arguments.indexConfig[replicaName].settings.attributesForFaceting) neq serializeJSON(algoliaSettings.attributesForFaceting)) {
+				stResult["#replicaName#.attributesForFaceting"] = true;
+			}
+
+			if (not structKeyExists(algoliaSettings, "ranking") OR serializeJSON(arguments.indexConfig[replicaName].settings.ranking) neq serializeJSON(algoliaSettings.ranking)) {
+				stResult["#replicaName#.ranking"] = true;
+			}
+
+			if (arrayLen(arguments.indexConfig[replicaName].settings.replicas) and (not structKeyExists(algoliaSettings, "replicas") OR serializeJSON(arguments.indexConfig[replicaName].settings.replicas) neq serializeJSON(algoliaSettings.replicas))) {
+				stResult["#replicaName#.replicas"] = true;
+			}
 		}
 
 		return stResult;
 	}
 
-	public void function applyAlgoliaSettings(boolean attributesForFaceting=false, boolean ordering=false) {
+	public void function applyAlgoliaSettings() {
 		var stSettings = {};
-		var stReplicaSettings = {};
 		var indexConfig = getExpandedConfig();
-		var replicaConfig = {};
 		var replicaName = "";
 
-		if (arguments.attributesForFaceting) {
-			stSettings["attributesForFaceting"] = indexConfig.settings.attributesForFaceting;
-		}
+		// alternate indexes
+		for (replicaName in indexConfig) {
+			// replicated settings
+			stSettings = {};
 
-		if (arguments.ordering) {
-			stSettings["replicas"] = indexConfig.settings.replicas;
-		}
+			if (structKeyExists(arguments, "#replicaName#.attributesForFaceting")) {
+				stSettings["attributesForFaceting"] = indexConfig[replicaName].settings.attributesForFaceting;
+			}
 
-		if (not structIsEmpty(stSettings)) {
-			setSettings(data=serializeJSON(stSettings), forwardToReplicas=true);
-		}
+			if (structKeyExists(arguments, "#replicaName#.replicas")) {
+				stSettings["replicas"] = indexConfig[replicaName].settings.replicas;
+			}
 
-		if (arguments.ordering) {
-			for (replicaName in indexConfig.settings.replicas) {
-				stReplicaSettings = getSettings(replicaName);
-				replicaConfig = {};
+			if (structKeyExists(arguments, "#replicaName#.ranking")) {
+				stSettings["ranking"] = indexConfig[replicaName].settings.ranking;
+			}
 
-				if (structIsEmpty(stReplicaSettings) or serializeJSON(stReplicaSettings.ranking) neq serializeJSON(indexConfig.settings.replica_settings[replicaName].ranking)) {
-					replicaConfig["ranking"] = indexConfig.settings.replica_settings[replicaName].ranking;
-				}
-
-				if (not structIsEmpty(replicaConfig)) {
-					setSettings(indexName=replicaName, data=serializeJSON(replicaConfig));
-				}
+			if (not structIsEmpty(stSettings)) {
+				setSettings(indexName=replicaName, data=serializeJSON(stSettings), forwardToReplicas=false);
 			}
 		}
 	}
@@ -428,34 +496,34 @@ component {
 		return this.indexConfig;
 	}
 
+	public struct function getIndexableTypes() {
+		if (not structKeyExists(this, "indexConfig") and isConfigured()) {
+			// isConfigured sets indexConfig
+		}
+
+		return this.indexableTypes;
+	}
+
 	public boolean function isIndexable(required struct stObject) {
-		if (not isConfigured()) {
+		if (not isConfigured()) {writeLog(file="debug", text="not configured");
 			return false;
 		}
 
-		if (not application.fc.lib.db.isDeployed(typename="alContentType", dsn=application.dsn)) {
+		if (not structKeyExists(this.typeSetup, arguments.stObject.typename)) {
+			if (not application.fc.lib.db.isDeployed(typename="alContentType", dsn=application.dsn)) {writeLog(file="debug", text="alContentType not deployed");
+				this.typeSetup[arguments.stObject.typename] = false;
+			}
+			else {
+				var qContentType = application.fapi.getContentObjects(typename="alContentType", contentType_eq=arguments.stObject.typename);
+				this.typeSetup[arguments.stObject.typename] = qContentType.recordcount gt 0;writeLog(file="debug", text="alContentType[#arguments.stObject.typename#] set up: #qContentType.recordcount#");
+			}
+		}
+		if (not this.typeSetup[arguments.stObject.typename]) {
 			return false;
 		}
 
-		var qContentType = application.fapi.getContentObjects(typename="alContentType", contentType_eq=arguments.stObject.typename);
-		if (qContentType.recordcount eq 0) {
-			return false;
-		}
-
-		var indexConfig = getExpandedConfig();
-		return structKeyExists(indexConfig.types, arguments.stObject.typename);
-	}
-
-	public struct function getTypeIndexFields(required string typename) {
-		var indexConfig = getExpandedConfig();
-
-		return indexConfig.types[arguments.typename];
-	}
-
-	public struct function getConfiguredSettings() {
-		var indexConfig = getExpandedConfig();
-
-		return indexConfig.settings;
+		var indexableTypes = getIndexableTypes();writeLog(file="debug", text="indexed: #structKeyExists(indexableTypes, arguments.stObject.typename)#");
+		return structKeyExists(indexableTypes, arguments.stObject.typename);
 	}
 
 	public query function getRecordsToUpdate(required string typename, required string builtToDate, maxRows=-1, boolean bDelete=false) {
@@ -517,6 +585,8 @@ component {
 		var strOut = createObject("java","java.lang.StringBuffer").init();
 		var builtToDate = "";
 		var stResult = {};
+		var indexableTypes = getIndexableTypes();
+		var indexName = "";
 
 		if (not structKeyExists(arguments,"stObject")) {
 			arguments.stObject = application.fapi.getContentData(typename=arguments.typename,objectid=arguments.objectid);
@@ -526,18 +596,26 @@ component {
 
 		strOut.append('{ "requests": [ ');
 
-		if (arguments.operation eq "updated" and (not structKeyExists(oContent, "isIndexable") or oContent.isIndexable(stObject=stObject))) {
-			strOut.append('{ "action": "addObject", "body": ');
-			processObject(strOut, arguments.stObject);
-			strOut.append(' }');
-			builtToDate = arguments.stObject.datetimeLastUpdated;
-		}
-		else if (arguments.operation eq "deleted") {
-			strOut.append('{ "action": "deleteObject", "body": ');
-			strOut.append('{ "objectID": "');
-			strOut.append(arguments.stObject.objectid);
-			strOut.append('" } }');
-			builtToDate = now();
+		for (indexName in indexableTypes[arguments.stObject.typename]) {
+			if (
+				arguments.operation eq "updated" and
+				(
+					(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stObject)) or
+					(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stObject))
+				)
+			) {
+				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+				processObject(indexName, strOut, arguments.stObject);
+				strOut.append(' }');
+				builtToDate = arguments.stObject.datetimeLastUpdated;
+			}
+			else if (arguments.operation eq "deleted") {
+				strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+				strOut.append('{ "objectID": "');
+				strOut.append(arguments.stObject.objectid);
+				strOut.append('" } }');
+				builtToDate = now();
+			}
 		}
 
 		strOut.append(' ] }');
@@ -567,11 +645,12 @@ component {
 		var stResult = {};
 		var count = 0;
 		var row = {};
-		var indexName = application.fapi.getConfig("algolia", "indexName");
 		var start = 0;
 		var queryTime = 0;
 		var processingTime = 0;
 		var apiTime = 0;
+		var indexableTypes = getIndexableTypes();
+		var indexName = "";
 
 		if (not structKeyExists(arguments,"stObject")) {
 			arguments.stObject = application.fapi.getData(typename='alContentType', objectid=arguments.objectid);
@@ -589,27 +668,35 @@ component {
 
 		start = getTickCount();
 		for (row in qContent) {
-			if (qContent.operation eq "updated" and (not structKeyExists(oContent, "isIndexable") or oContent.isIndexable(stObject=stObject))) {
-				stContent = oContent.getData(objectid=qContent.objectid);
+			for (indexName in indexableTypes[qContent.typename]) {
+				if (qContent.operation eq "updated") {
+					stContent = oContent.getData(objectid=qContent.objectid);
 
-				strOut.append('{ "action": "addObject", "body": ');
-				processObject(strOut, stContent);
-				strOut.append(' }');
-			}
-			else if (qContent.operation eq "deleted") {
-				strOut.append('{ "action": "deleteObject", "body": ');
-				strOut.append('{ "objectID": "');
-				strOut.append(qContent.objectid);
-				strOut.append('" } }');
+					if (
+						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
+						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
+					) {
+						strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
+						processObject(indexName, strOut, stContent);
+						strOut.append(' }, ');
+					}
+				}
+				else if (qContent.operation eq "deleted") {
+					strOut.append('{ "action": "deleteObject", "indexName":"#indexName#", "body": ');
+					strOut.append('{ "objectID": "');
+					strOut.append(qContent.objectid);
+					strOut.append('" } }, ');
+				}
 			}
 
-			if (strOut.length() * ((qContent.currentrow+1) / qContent.currentrow) gt arguments.requestSize or qContent.currentrow eq qContent.recordcount) {
+			if (
+				strOut.length() * ((qContent.currentrow+1) / qContent.currentrow) gt arguments.requestSize or
+				qContent.currentrow eq qContent.recordcount
+			) {
+				strOut.delete(strOut.length()-2, strOut.length());
 				builtToDate = qContent.datetimeLastUpdated;
 				count = qContent.currentrow;
 				break;
-			}
-			else {
-				strOut.append(', ');
 			}
 		}
 		processingTime += getTickCount() - start;
@@ -623,7 +710,7 @@ component {
 
 			arguments.stObject.datetimeBuiltTo = builtToDate;
 			application.fapi.setData(stProperties=arguments.stObject);
-			writeLog(file="cloudsearch", text="Updated #count# #arguments.stObject.contentType# record/s");
+			writeLog(file="algolia", text="Updated #count# #arguments.stObject.contentType# record/s");
 		}
 
 		stResult["typename"] = arguments.stObject.contentType;
@@ -636,10 +723,10 @@ component {
 		return stResult;
 	}
 
-	public void function processObject(required any out, struct stObject) {
+	public void function processObject(required string indexName, required any out, required struct stObject) {
 		var oType = application.fapi.getContentType(arguments.stObject.typename);
-		var stFields = getTypeIndexFields(arguments.stObject.typename);
-		var stSettings = getConfiguredSettings();
+		var stFields = getExpandedConfig()[arguments.indexName].types[arguments.stObject.typename];
+		var stSettings = getExpandedConfig()[arguments.indexName].settings;
 
 		arguments.out.append('{ ');
 
@@ -773,8 +860,31 @@ component {
 		arguments.out.append(' ]');
 	}
 
+	public void function processArrayLabels(required any out, required struct stObject, required struct propertyConfig) {
+		var stObject = {};
+		var property = structKeyExists(arguments.propertyConfig, "property") ? arguments.propertyConfig["property"] : "label";
+
+		arguments.out.append('[ ');
+
+		for (var i=1; i<=arrayLen(arguments.stObject[arguments.propertyConfig.from]); i++) {
+			if (i neq 1) {
+				arguments.out.append(', ');
+			}
+
+			stObject = application.fapi.getContentObject(objectid=arguments.stObject[arguments.propertyConfig.from][i]);
+			arguments.out.append(serializeJSON(stObject[property]));
+		}
+
+		arguments.out.append(' ]');
+	}
+
 	public void function processList(required any out, required struct stObject, required struct propertyConfig) {
-		var value = listToArray(arguments.stObject[arguments.propertyConfig.from]);
+		if (not application.fapi.getPropertyMetadata(arguments.stObject.typename, arguments.propertyConfig.from, "ftSelectMultiple", false)) {
+			arguments.out.append(serializeJSON(arguments.stObject[arguments.propertyConfig.from]));
+			return;
+		}
+
+		var value = isArray(arguments.stObject[arguments.propertyConfig.from]) ? arguments.stObject[arguments.propertyConfig.from] : listToArray(arguments.stObject[arguments.propertyConfig.from]);
 
 		arguments.out.append('[ ');
 
@@ -799,13 +909,23 @@ component {
 	}
 
 	public void function processWebskin(required any out, required struct stObject, required struct propertyConfig) {
-		writeLog(file="debug", text=serializeJSON(arguments.stObject));
 		var html = application.fapi.getContentType(arguments.stObject.typename).getView(stObject=arguments.stObject, webskin=arguments.propertyConfig.webskin, alternateHTML="");
 
 		html = reReplace(html, "(?:m)^\s+", "", "ALL");
 		html = reReplace(html, "[\n\r]+", "\n", "ALL");
 
 		arguments.out.append(serializeJSON(html));
+	}
+
+	public void function processFile(required any out, required struct stObject, required struct propertyConfig) {
+		var oType = application.fapi.getContentType(arguments.stObject.typename);
+		var path = oType.getFileLocation(stObject=arguments.stObject, fieldname=arguments.propertyConfig.from).path;
+
+		arguments.out.append(serializeJSON(path));
+	}
+
+	public void function processImage(required any out, required struct stObject, required struct propertyConfig) {
+		return processFile(argumentCollection=arguments);
 	}
 
 	public void function processTypenameLabel(required any out, required struct stObject) {
@@ -912,7 +1032,7 @@ component {
 
 		return makeRequest(
 			method = "POST",
-			resource = "/indexes/#indexName#/batch",
+			resource = "/indexes/*/batch",
 			data = arguments.data
 		);
 	}

@@ -14,4 +14,11 @@ component extends="farcry.core.packages.types.types" displayName="Algolia Conten
 		ftSeq="3" ftWizardStep="" ftFieldset="" ftLabel="Config Signature"
 		ftHint="A hash of the current configuration for this content type. Can be used to determine if the config has changed, and this type needs to be reindexed.";
 
+
+	public struct function setData() {
+		application.fc.lib.algolia.typeSetup[arguments.stProperties.contentType] = true;
+
+		return super.setData(argumentCollection=arguments);
+	}
+
 }

@@ -10,7 +10,7 @@
 	<cfset stCT = application.fapi.getContentObject(typename="alContentType", objectid=createUUID()) />
 	<cfset stCT.contentType = url.contentType />
 	<cfset stCT.datetimeBuiltTo = '1 Jan 1970' />
-	<cfset stCT.configSignature = hash(serializeJSON(application.fc.lib.algolia.getTypeIndexFields(url.contentType))) />
+	<cfset stCT.configSignature = hash(serializeJSON(application.fc.lib.algolia.getIndexableTypes()[url.contentType])) />
 	<cfset application.fapi.setData(stProperties=stCT) />
 
 	<skin:bubble tags="success" message="#url.contentType# has been initialized. Now start uploading documents!" />
@@ -19,7 +19,7 @@
 
 <cfif url.mode eq "reindex">
 	<cfset stObj.datetimeBuiltTo = '1 Jan 1970' />
-	<cfset stObj.configSignature = hash(serializeJSON(application.fc.lib.algolia.getTypeIndexFields(stObj.contentType))) />
+	<cfset stObj.configSignature = hash(serializeJSON(application.fc.lib.algolia.getIndexableTypes()[stObj.contentType])) />
 	<cfset application.fapi.setData(stProperties=stObj) />
 
 	<skin:bubble tags="success" message="#stObj.contentType# has been reset for re-indexing. Now start uploading documents!" />
@@ -53,7 +53,7 @@
 	</cftry>
 
 	<cfset application.fapi.stream(type="json", content={
-		"uploaded"=0,
+		"result"="No documents to upload",
 		"more"=false
 	}) />
 </cfif>

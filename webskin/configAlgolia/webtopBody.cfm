@@ -81,25 +81,38 @@
 			<h1>Configuration - Index</h1>
 			<table class="table table-striped">
 				<tbody>
-					<tr>
-						<th><code>attributesForFaceting</code></th>
-						<td>
-							#arrayToList(expandedConfig.settings.attributesForFaceting, ", ")#
-							<cfif structKeyExists(stDiffs, "attributesForFaceting")>
-								<strong style="color:red;">Changed</strong>
-							</cfif>
-						</td>
-					</tr>
-					<tr>
-						<th><code>ordering</code></th>
-						<td>
-							#arrayToList(expandedConfig.settings.ordering, ", ")#
-							<cfif structKeyExists(stDiffs, "ordering")>
-								<strong style="color:red;">Changed</strong><br>
-								<small>NOTE: applying this change will NOT delete indexes that are no longer required. That must be done manual.</small>
-							</cfif>
-						</td>
-					</tr>
+					<cfloop collection="#expandedConfig#" item="indexName">
+						<tr>
+							<th><code>#indexName#</code> <cfif expandedConfig[indexName].replica> (replica)</cfif></th>
+							<th><code>attributesForFaceting</code></th>
+							<td>
+								#arrayToList(expandedConfig[indexName].settings.attributesForFaceting, ", ")#
+								<cfif structKeyExists(stDiffs, "#indexName#.attributesForFaceting")>
+									<strong style="color:red;">Changed</strong>
+								</cfif>
+							</td>
+						</tr>
+						<tr>
+							<th></th>
+							<th><code>ranking</code></th>
+							<td>
+								#arrayToList(expandedConfig[indexName].settings.ranking, ", ")#
+								<cfif structKeyExists(stDiffs, "#indexName#.ranking")>
+									<strong style="color:red;">Changed</strong><br>
+								</cfif>
+							</td>
+						</tr>
+						<tr>
+							<th></th>
+							<th><code>replicas</code></th>
+							<td>
+								#arrayToList(expandedConfig[indexName].settings.replicas, ", ")#
+								<cfif structKeyExists(stDiffs, "#indexName#.replicas")>
+									<strong style="color:red;">Changed</strong>
+								</cfif>
+							</td>
+						</tr>
+					</cfloop>
 				</tbody>
 			</table>
 		</cfoutput>
@@ -110,16 +123,21 @@
 		</cfif>
 	</ft:form>
 
+	<cfset indexableTypes = application.fc.lib.algolia.getIndexableTypes() />
 	<cfoutput>
 		<h2>Configuration - Data to index</h2>
 		<table class="table table-striped">
 			<tbody>
-				<cfloop collection="#expandedConfig.types#" item="typename">
+				<cfloop collection="#indexableTypes#" item="typename">
 					<cfset bAmbiguousTimestamps = hasAmbiguousTimestamps(typename) />
 
 					<tr>
 						<td>#application.fapi.getContentTypeMetadata(typename, "displayName", typename)#</td>
-						<td>#structKeyList(expandedConfig.types[typename], ", ")#</td>
+						<td>
+							<cfloop collection="#indexableTypes[typename]#" item="indexName">
+								<strong>#indexName#</strong>: #structKeyList(indexableTypes[typename][indexName], ", ")#<br>
+							</cfloop>
+						</td>
 
 						<cfif alContentTypeDeployed>
 							<cfset qBuildInfo = application.fapi.getContentObjects(typename="alContentType", lProperties="objectid,datetimeBuiltTo,configSignature", contentType_eq=typename) />
@@ -131,9 +149,10 @@
 										<a title="This content type has ambiguous timestamps." href="#application.fapi.fixURL(addvalues='disamb=#typename#')#">Disambiguate timestamps</a><br>
 									</cfif>
 
-									<cfif hash(serializeJSON(expandedConfig.types[typename])) eq qBuildInfo.configSignature>
+									<cfif hash(serializeJSON(indexableTypes[typename])) eq qBuildInfo.configSignature>
 										Schema is up to date<br>
-										<a title="Schema has changed, you should re-index this type" href="javascript:$fc.objectAdminAction('Upload Data', '/index.cfm?objectid=#qBuildInfo.objectid#&type=alContentType&view=webtopPageModal&bodyView=webtopBodyUpload&mode=upload');">Upload</a><br>
+										<a title="Start uploading data" href="javascript:$fc.objectAdminAction('Upload Data', '/index.cfm?objectid=#qBuildInfo.objectid#&type=alContentType&view=webtopPageModal&bodyView=webtopBodyUpload&mode=upload');">Upload</a><br>
+										<a title="Re-upload all data" href="javascript:$fc.objectAdminAction('Upload Data', '/index.cfm?objectid=#qBuildInfo.objectid#&type=alContentType&view=webtopPageModal&bodyView=webtopBodyUpload&mode=reindex');">Re-upload</a><br>
 									<cfelse>
 										<a title="Schema has changed, you should re-index this type" href="javascript:$fc.objectAdminAction('Upload Data', '/index.cfm?objectid=#qBuildInfo.objectid#&type=alContentType&view=webtopPageModal&bodyView=webtopBodyUpload&mode=reindex');">Re-upload</a><br>
 									</cfif>
