@@ -606,17 +606,19 @@ component {
 			) {
 				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
 				processObject(indexName, strOut, arguments.stObject);
-				strOut.append(' }');
+				strOut.append(' }, ');
 				builtToDate = arguments.stObject.datetimeLastUpdated;
 			}
 			else if (arguments.operation eq "deleted") {
 				strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
 				strOut.append('{ "objectID": "');
 				strOut.append(arguments.stObject.objectid);
-				strOut.append('" } }');
+				strOut.append('" } }, ');
 				builtToDate = now();
 			}
 		}
+
+		strOut.delete(strOut.length()-2, strOut.length());
 
 		strOut.append(' ] }');
 
@@ -693,7 +695,6 @@ component {
 				strOut.length() * ((qContent.currentrow+1) / qContent.currentrow) gt arguments.requestSize or
 				qContent.currentrow eq qContent.recordcount
 			) {
-				strOut.delete(strOut.length()-2, strOut.length());
 				builtToDate = qContent.datetimeLastUpdated;
 				count = qContent.currentrow;
 				break;
@@ -701,6 +702,7 @@ component {
 		}
 		processingTime += getTickCount() - start;
 
+		strOut.delete(strOut.length()-2, strOut.length());
 		strOut.append(' ] }');
 
 		if (count) {
