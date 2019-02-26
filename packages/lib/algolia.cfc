@@ -653,7 +653,7 @@ component {
 		var indexName = "";
 
 		if (not structKeyExists(arguments,"stObject")) {
-			arguments.stObject = application.fapi.getData(typename='alContentType', objectid=arguments.objectid);
+			arguments.stObject = application.fapi.getContentObject(typename='alContentType', objectid=arguments.objectid);
 		}
 
 		oContent = application.fapi.getContentType(typename=arguments.stObject.contentType);
