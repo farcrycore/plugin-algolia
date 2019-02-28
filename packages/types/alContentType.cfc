@@ -15,8 +15,13 @@ component extends="farcry.core.packages.types.types" displayName="Algolia Conten
 		ftHint="A hash of the current configuration for this content type. Can be used to determine if the config has changed, and this type needs to be reindexed.";
 
 
-	public struct function setData() {
-		application.fc.lib.algolia.typeSetup[arguments.stProperties.contentType] = true;
+	public struct function setData(required struct stProperties, boolean bSessionOnly=false) {
+		if (not arguments.bSessionOnly) {
+			if (not structKeyExists(arguments.stProperties, "contentType")) {
+				structAppend(arguments.stProperties, getData(arguments.stProperties.objectid), false);
+			}
+			application.fc.lib.algolia.typeSetup[arguments.stProperties.contentType] = true;
+		}
 
 		return super.setData(argumentCollection=arguments);
 	}
