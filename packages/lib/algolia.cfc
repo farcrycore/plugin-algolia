@@ -192,6 +192,10 @@ component {
 			arrayAppend(stResult.value, "filterOnly(expirydate)")
 		}
 
+		if (not arrayFind(stResult.value, "typenamelabel")) {
+			arrayAppend(stResult.value, "typenamelabel")
+		}
+
 		return stResult;
 	}
 

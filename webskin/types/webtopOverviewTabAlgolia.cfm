@@ -47,13 +47,17 @@
 	</style>
 </cfoutput></skin:htmlHead>
 
-<cfset strOut = createObject("java","java.lang.StringBuffer").init() />
-<cfset application.fc.lib.algolia.processObject(out=strOut, stObject=stObj) />
-<cfset jsonOut = application.fapi.formatJSON(strOut.toString()) />
-<ft:field label="Document"><cfoutput>
-	<pre class="formatjson">#jsonOut#</pre>
-	<p><a href='#application.fapi.getLink(type="alContentType", view="ajaxPush", urlParameters="pushtype=#stObj.typename#&pushID=#stObj.objectid#")#' onclick="$j(this).find('.info').remove().end().prepend('<i class=\'fa fa-spinner fa-spin info\'></i> '); $j.ajax({ url:this.href, dataType:'json', success:function(data){ $j(this).find('.fa').remove().end().append(' <span class=\'info\' style=\'text-decoration:none;cursor:default;'+(data.success ? 'color:green;' : 'color:red;')+'\'>'+data.message+'</span>'); }, context:this }); return false;">Push update to Algolia</a></p>
-</cfoutput></ft:field>
+<cfset indexableTypes = application.fc.lib.algolia.getIndexableTypes() />
+<cfloop collection="#indexableTypes[arguments.stObject.typename]#" item="indexName">
+	<cfset strOut = createObject("java","java.lang.StringBuffer").init() />
+	<cfset application.fc.lib.algolia.processObject(indexName=indexName, out=strOut, stObject=stObj) />
+	<cfset jsonOut = application.fapi.formatJSON(strOut.toString()) />
+
+	<ft:field label="Document (<code>#indexName#</code>)"><cfoutput>
+		<pre class="formatjson">#jsonOut#</pre>
+		<p><a href='#application.fapi.getLink(type="alContentType", view="ajaxPush", urlParameters="pushtype=#stObj.typename#&pushID=#stObj.objectid#")#' onclick="$j(this).find('.info').remove().end().prepend('<i class=\'fa fa-spinner fa-spin info\'></i> '); $j.ajax({ url:this.href, dataType:'json', success:function(data){ $j(this).find('.fa').remove().end().append(' <span class=\'info\' style=\'text-decoration:none;cursor:default;'+(data.success ? 'color:green;' : 'color:red;')+'\'>'+data.message+'</span>'); }, context:this }); return false;">Push update to Algolia</a></p>
+	</cfoutput></ft:field>
+</cfloop>
 
 <cfoutput>
 	<h2>Label Search</h2>

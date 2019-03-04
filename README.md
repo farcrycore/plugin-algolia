@@ -60,7 +60,7 @@ If you want to preserve these dates, you can:
     
     UPDATE contentType
     SET datetimeLastUpdated_bak = datetimeLastUpdated;
-
+    
     ALTER TABLE contentType
     ADD `inc` INT NOT NULL AUTO_INCREMENT UNIQUE;
     
