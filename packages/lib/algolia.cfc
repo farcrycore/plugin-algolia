@@ -1003,7 +1003,7 @@ component {
 		}
 
 		if (not reFindNoCase("^20. ",cfhttp.statuscode) and not reFindNoCase("^404 ",cfhttp.statuscode)) {
-			throw(message="Error accessing Google API: #cfhttp.statuscode#", detail="#serializeJSON({
+			throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
 				'resource' = arguments.resource,
 				'method' = arguments.method,
 				'query_string' = arguments.stQuery,
@@ -1015,7 +1015,7 @@ component {
 		}
 		if (reFindNoCase("^404 ",cfhttp.statuscode)) {
 			if (arguments.throwOn404) {
-				throw(message="Error accessing Google API: #cfhttp.statuscode#", detail="#serializeJSON({
+				throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
 					'resource' = arguments.resource,
 					'method' = arguments.method,
 					'query_string' = arguments.stQuery,

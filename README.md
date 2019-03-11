@@ -56,16 +56,12 @@ If you want to preserve these dates, you can:
 1) Do something like this to make a copy of the field, and disambiguate `datetimeLastUpdated`:
 
     ALTER TABLE contentType
-    ADD datetimeLastUpdated_bak DATETIME NOT NULL;
-    
-    UPDATE contentType
-    SET datetimeLastUpdated_bak = datetimeLastUpdated;
-    
-    ALTER TABLE contentType
+    ADD datetimeLastUpdated_bak DATETIME NOT NULL,
     ADD `inc` INT NOT NULL AUTO_INCREMENT UNIQUE;
     
     UPDATE contentType
-    SET datetimeLastUpdated = DATE_ADD(date(datetimeLastUpdated), INTERVAL `inc` SECOND);
+    SET datetimeLastUpdated_bak = datetimeLastUpdated,
+        datetimeLastUpdated = DATE_ADD(date(datetimeCreated), INTERVAL `inc` SECOND);
     
     ALTER TABLE contentType
     DROP COLUMN `inc`;
