@@ -35,9 +35,9 @@ component {
 					}
 				}
 			}
-		}
 
-		this.typeSetup = {};
+			this.typeSetup = {};
+		}
 
 		return this.searchEnabled;
 	}
@@ -509,24 +509,24 @@ component {
 	}
 
 	public boolean function isIndexable(required struct stObject) {
-		if (not isConfigured()) {writeLog(file="debug", text="not configured");
+		if (not isConfigured()) {
 			return false;
 		}
 
 		if (not structKeyExists(this.typeSetup, arguments.stObject.typename)) {
-			if (not application.fc.lib.db.isDeployed(typename="alContentType", dsn=application.dsn)) {writeLog(file="debug", text="alContentType not deployed");
+			if (not application.fc.lib.db.isDeployed(typename="alContentType", dsn=application.dsn)) {
 				this.typeSetup[arguments.stObject.typename] = false;
 			}
 			else {
 				var qContentType = application.fapi.getContentObjects(typename="alContentType", contentType_eq=arguments.stObject.typename);
-				this.typeSetup[arguments.stObject.typename] = qContentType.recordcount gt 0;writeLog(file="debug", text="alContentType[#arguments.stObject.typename#] set up: #qContentType.recordcount#");
+				this.typeSetup[arguments.stObject.typename] = qContentType.recordcount gt 0;
 			}
 		}
 		if (not this.typeSetup[arguments.stObject.typename]) {
 			return false;
 		}
 
-		var indexableTypes = getIndexableTypes();writeLog(file="debug", text="indexed: #structKeyExists(indexableTypes, arguments.stObject.typename)#");
+		var indexableTypes = getIndexableTypes();
 		return structKeyExists(indexableTypes, arguments.stObject.typename);
 	}
 
