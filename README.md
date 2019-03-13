@@ -45,6 +45,45 @@ This should contain an entry for each content type you need to index. The value 
 
 > TODO: what do these property keys need to contain
 
+
+### Example Config with Special Cases
+
+```
+<cfset application.fapi.setConfig("algolia", "indexConfig", serializeJSON({
+    "types": {
+        "dspPage": { "title":{}, "parentUUID":{}, "body":{}, "siteID":{}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } },
+        "yafEvent": { "siteID":{}, "title":{}, "parentUUID":{}, "acategorylabels":{ "from":"parentUUID", "type":"parentlabel" }, "publishDate":{}, "publishDateLabel":{ "from":"publishDate", "type":"dateAsString" }, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" }, "location":{}, "venue":{}, "link":{}, "body":{}, "teaser":{}, "contactCompany":{}, "contactName":{}, "contactEmail":{}, "contactPhone":{}, "bPublication":{} },
+        "yafMagazine": { "siteID":{}, "title":{}, "teaser":{}, "yearlabel":{ "type":"yearlabel" } },
+        "yafPhotoCompetition": { "siteID":{}, "title":{}, "parentUUID":{}, "acategorylabels":{ "from":"parentUUID", "type":"parentlabel" }, "teaser":{}, "body":{}, "aCategories":{}, "body2":{}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } },
+        "yafPhotoCompetitionEntry": { "siteID":{}, "yafCompID":{}, "acategorylabels":{ "from":"yafCompID", "type":"parentlabel" }, "teaser":{}, "photographer":{}, "lastName":{}, "email":{}, "suburb":{}, "country":{}, "title":{}, "description": {}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } },
+        "yafPhotoCompetitionEntryPhoto": { "siteID":{}, "title":{}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } },
+        "dspArticle": { "title":{}, "parentUUID":{}, "acategorylabels":{ "from":"parentUUID", "type":"parentlabel" }, "publishDate":{}, "publishDateLabel":{ "from":"publishDate", "type":"dateAsString" }, "authorUUID":{}, "body":{}, "teaser":{}, "seoTitle":{}, "seoDescription":{}, "seoKeywords":{}, "siteID":{}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } },
+        "dirCompany": { "status":{ "processFn":"processStatus" }, "siteID":{}, "parentUUID":{}, "listingType":{}, "bFeatured":{}, "datetimeLastOwnerUpdate":{}, "title":{ "from":"name" }, "teaser":{}, "aCategories":{}, "aCategoryLabels":{ "from":"aCategories", "type":"arraylabels" }, "phone":{}, "fax":{}, "address1":{}, "address2":{}, "suburb":{}, "state":{}, "postcode":{}, "abn":{}, "contact":{}, "websiteURL":{}, "facebookURL":{}, "twitterID":{}, "instagramID":{}, "email":{}, "description":{}, "mailingAddress1":{}, "mailingAddress2":{}, "mailingSuburb":{}, "mailingState":{}, "mailingPostcode":{}, "internationalAddress1":{}, "internationalAddress2":{}, "internationalSuburb":{}, "internationalCountry":{}, "internationalState":{}, "internationalPostcode":{}, "normalizedname":{}, "capabilities":{}, "yearlabel":{ "type":"yearlabel" }, "datebreakdown": { "type":"datehierarchy" } }
+    },
+    "settings": {
+        "attributesForFaceting": [ "filterOnly(siteid)", "acategorylabels", "yearlabel", "datebreakdown" ],
+        "ordering": {
+            "publishdate_desc": "publishdate desc"
+        }
+    },
+    "alternateIndexes": {
+        "company": {
+            "types": {
+                "dirCompany": { "status":{ "processFn":"processStatus" }, "siteID":{}, "parentUUID":{}, "listingType":{}, "bFeatured":{}, "datetimeLastOwnerUpdate":{}, "title":{ "from":"name" }, "teaser":{}, "aCategories":{}, "aCategoryLabels":{ "from":"aCategories", "type":"arraylabels" }, "phone":{}, "fax":{}, "address1":{}, "address2":{}, "suburb":{}, "state":{}, "postcode":{}, "abn":{}, "contact":{}, "websiteURL":{}, "facebookURL":{}, "twitterID":{}, "instagramID":{}, "email":{}, "description":{}, "mailingAddress1":{}, "mailingAddress2":{}, "mailingSuburb":{}, "mailingState":{}, "mailingPostcode":{}, "internationalAddress1":{}, "internationalAddress2":{}, "internationalSuburb":{}, "internationalCountry":{}, "internationalState":{}, "internationalPostcode":{}, "normalizedname":{}, "capabilities":{}, "thumbnailLogo":{}, "hasthumbnail":{ "processFn":"processHasThumbnail" } }
+            },
+            "settings": {
+                "attributesForFaceting": [ "filterOnly(siteid)", "filterOnly(parentuuid)", "filterOnly(acategories)", "acategorylabels", "filterOnly(parentuuid)" ],
+                "ordering": {
+                    "default": "bfeatured desc",
+                    "publishdate_desc": "bfeatured desc,publishdate desc"
+                }
+            }
+        }
+    }
+}), true) />
+```
+
+
 ## Disambiuating Dates
 
 The initial import of data requires that datetimeLastUpdated be unique. If you have imported data into that table in the past, or if you insert a lot of data, you may have duplicate dates in this column.
