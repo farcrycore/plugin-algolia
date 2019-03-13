@@ -3,7 +3,7 @@ Implements site search using the Algolia service
 
 ## Setup
 
-Add an aias to your web server config.
+Add an alias to your web server config.
 
 **NGINX config**
 ```
