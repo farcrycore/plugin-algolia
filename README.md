@@ -19,17 +19,59 @@ Add an alias to your web server config.
 
 
 ## Configuration
+There are several Algolia service specific keys you will need to get up and running.  You can set these through the webtop, codebase or via environment variables.
 
-This plugin is configured by setting a JSON packet in the `algolia.indexConfig`config. Typically this would be set in `_serverSpecificVarsAfterInit.cfm`. For example:
+| Property     | Notes                                                     |
+| ------------ | --------------------------------------------------------- |
+| applicationID | Algolia service application ID for your account. |
+| adminAPIKey | Algolia Admin API key. |
+| queryAPIKey | Algolia Search API Key. |
+| indexName | Name for the base index in Algolia. Additional indexes can be added but they will all be prefixed with this value. |
 
+Recommend using ENV variables, especially the `indexName`, as these may vary between environments.
+
+For example, through ENV via `docker-compose`:
+```
+    - "FARCRY_CONFIG_ALGOLIA_APPLICATIONID=XXXTOPSECRETXXX"
+    - "FARCRY_CONFIG_ALGOLIA_ADMINAPIKEY=XXXTOPSECRETXXX"
+    - "FARCRY_CONFIG_ALGOLIA_QUERYAPIKEY=XXXTOPSECRETXXX"
+    - "FARCRY_CONFIG_ALGOLIA_INDEXNAME=stage_myapp"
+```
+
+This plugin is configured by setting a JSON packet in the `algolia.indexConfig`config, see examples below. Typically this would be set in `_serverSpecificVarsAfterInit.cfm`. 
+
+For example:
+```
     <cfset application.fapi.setConfig("algolia", "indexConfig", serializeJSON({
         "types": {
             "dmHTML": { "title":{}, "teaser":{}, "body":{} }
         },
-        "settings": {
-            
+        "settings": {  
         }
     }), true) />
+```
+
+
+Required index properties; title, teaser for example UI map them to content type properties
+Need all index properties to have the same name if used across multiple content types in a single index.
+
+Implied content type property name from index name:
+"title":{ "from":"title", "type":"string" }
+(the data type "type" defaults to fttype for the cfproperty; fall back to string)
+(from is optional; defaults to the data type function value)
+
+Plugin data type function generic is processObject() and it determines and calls standard functions that map to standard farcry data types and special dynamic data types like processFriendlyURL and processWebskin.
+"speciallabel":{ "type":"Webskin", "webskin":"myfunkywebskinview" }
+
+Custom data type function possible:
+"acategorylabels":{ "from":"parentUUID", "type":"parentlabel" }
+
+acategorylabel (algolia index property name)
+has a value from "parentUUID" processed by the custom function lib.algolia.parentlabel()
+function gets; stobject, config properties, and java string buffer
+
+You can add as many properties as you like to the config struct for each content type; they just get passed into the processFunction as arguments.
+
 
 The following sections describe the values this config should contain:
 
@@ -38,6 +80,8 @@ The following sections describe the values this config should contain:
 | Key          | Notes                                                     |
 | ------------ | --------------------------------------------------------- |
 | maxFieldSize | The maximum number of characters for any field. Def: 5000 |
+| attributesForFaceting | Array of properties available for faceted search. |
+| ordering | Order of each specific index; defaults to `bfeatured desc` but might be used to create alternate index order by date. |
 
 ### Types
 
@@ -46,7 +90,20 @@ This should contain an entry for each content type you need to index. The value 
 > TODO: what do these property keys need to contain
 
 
-### Example Config with Special Cases
+### Examples
+
+**Most Basic Functioning Example**
+```
+    <cfset application.fapi.setConfig("algolia", "indexConfig", serializeJSON({
+        "types": {
+            "dmHTML": { "title":{}, "teaser":{}, "body":{} }
+        },
+        "settings": {  
+        }
+    }), true) />
+```
+
+**Complex Config with Special Cases**
 
 ```
 <cfset application.fapi.setConfig("algolia", "indexConfig", serializeJSON({

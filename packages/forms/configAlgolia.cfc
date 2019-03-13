@@ -1,4 +1,4 @@
-component extends="farcry.core.packages.forms.forms" key="algolia" displayName="Algolia Search" fuAlias="search" {
+component extends="farcry.core.packages.forms.forms" key="algolia" displayName="Algolia Search" fuAlias="search" hint="Algolia search service keys and index configuration." {
 
 	property name="applicationID" type="string" required="false"
 		ftSeq="1" ftWizardStep="" ftFieldset="" ftLabel="Application ID"
