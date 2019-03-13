@@ -3,11 +3,20 @@ Implements site search using the Algolia service
 
 ## Setup
 
-Add this to your nginx config:
+Add an aias to your web server config.
 
+**NGINX config**
+```
     location /algolia {
         alias /var/www/farcry/plugins/algolia/www;
     }
+```
+
+**Apache config**
+```
+   Alias "/algolia" "/var/www/farcry/plugins/algolia/www"
+```
+
 
 ## Configuration
 
