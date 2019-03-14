@@ -1,23 +1,23 @@
 component extends="farcry.core.packages.forms.forms" key="algolia" displayName="Algolia Search" fuAlias="search" hint="Algolia search service keys and index configuration." {
 
 	property name="applicationID" type="string" required="false"
-		ftSeq="1" ftWizardStep="" ftFieldset="" ftLabel="Application ID"
+		ftSeq="1" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Application ID"
 		ftHint="This is provided in the Algolia console";
 
 	property name="indexName" type="string" required="false"
-		ftSeq="2" ftWizardStep="" ftFieldset="" ftLabel="Index Name"
+		ftSeq="2" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Index Name"
 		ftHint="This is the unique index name for this application. Can contain letters, numbers, underscores, hyphens, and periods. Note: if you have multiple environments, you may want to incorporate the environment name in this value.";
 
 	property name="adminAPIKey" type="string" required="false"
-		ftSeq="3" ftWizardStep="" ftFieldset="" ftLabel="Admin API Key"
+		ftSeq="3" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Admin API Key"
 		ftHint="The API key to use for managing index settings and index data. If you wish to set up a custom ACL, this key needs [search, browse, addObject, deleteObject, settings, editSettings]";
 
 	property name="queryAPIKey" type="string" required="false"
-		ftSeq="4" ftWizardStep="" ftFieldset="" ftLabel="Query API Key"
+		ftSeq="4" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Query API Key"
 		ftHint="The API key to use for searches. This is used on the front end in JavaScript and will be visible to users.";
 
 	property name="indexConfig" type="longchar" required="false"
-		ftSeq="5" ftWizardStep="" ftFieldset="" ftLabel="Index Config"
+		ftSeq="5" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Index Config"
 		ftHint="See the Algolia plugin README.md for details.";
 
 
