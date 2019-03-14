@@ -45,7 +45,8 @@ component {
 	public struct function validateConfig(
 		string indexName=application.fapi.getConfig("algolia", "indexName"),
 		any indexConfig=application.fapi.getConfig("algolia", "indexConfig")
-	) {
+		) 
+	{
 		if (isSimpleValue(arguments.indexConfig)) {
 			if (arguments.indexConfig eq "") {
 				return { valid: false, details: ["No configuration"] };
@@ -982,10 +983,12 @@ component {
 		if (arguments.method eq "GET" and reFind("^/indexes/[^/]+(/query|/queries|/facets|/browse)?", arguments.resource)) {
 			// query request
 			apiKey = application.fapi.getConfig("algolia", "queryAPIKey");
+			apiKeyType = "search";
 		}
 		else {
 			// admin request
 			apiKey = application.fapi.getConfig("algolia", "adminAPIKey");
+			apiKeyType = "admin";
 		}
 
 		for (item in arguments.stQuery) {
@@ -1006,6 +1009,7 @@ component {
 			throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
 				'resource' = arguments.resource,
 				'method' = arguments.method,
+				'apiKeyType' = apiKeyType,
 				'query_string' = arguments.stQuery,
 				'body' = arguments.data,
 				'resource' = 'https://#subdomain#.algolia.net/v1' & resourceURL,
@@ -1018,6 +1022,7 @@ component {
 				throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
 					'resource' = arguments.resource,
 					'method' = arguments.method,
+					'apiKeyType' = apiKeyType,
 					'query_string' = arguments.stQuery,
 					'body' = arguments.data,
 					'resource' = 'https://#subdomain#.algolia.net/v1' & resourceURL,
