@@ -51,7 +51,6 @@ For example:
     }), true) />
 ```
 
-
 Required index properties; title, teaser for example UI map them to content type properties
 Need all index properties to have the same name if used across multiple content types in a single index.
 
@@ -75,6 +74,22 @@ You can add as many properties as you like to the config struct for each content
 
 The following sections describe the values this config should contain:
 
+### Types
+
+This should contain an entry for each content type you need to index. The value of this is an empty struct (to index all properties of that type) or a struct with keys for all the properties you need to be indexed.
+
+> TODO: what do these property keys need to contain
+
+| Type Property Options          | Notes                                                     |
+| ------------ | --------------------------------------------------------- |
+| from |  |
+| type | A FarCry data type; defaults to fttype attribute value or string. |
+| datehierarchy |  |
+| friendlyurl |  |
+| webskin |  |
+| custom |  |
+
+
 ### Settings
 
 | Key          | Notes                                                     |
@@ -82,12 +97,6 @@ The following sections describe the values this config should contain:
 | maxFieldSize | The maximum number of characters for any field. Def: 5000 |
 | attributesForFaceting | Array of properties available for faceted search. |
 | ordering | Order of each specific index; defaults to `bfeatured desc` but might be used to create alternate index order by date. |
-
-### Types
-
-This should contain an entry for each content type you need to index. The value of this is an empty struct (to index all properties of that type) or a struct with keys for all the properties you need to be indexed.
-
-> TODO: what do these property keys need to contain
 
 
 ### Examples
