@@ -172,12 +172,15 @@ component {
 		}
 
 		stResult.value = arguments.attributesForFaceting;
-		for (i=1; i<=arrayLen(arguments.attributesForFaceting); i++) {
-			if (not isSimpleValue(arguments.attributesForFaceting[i])) {
+		for (i=1; i<=arrayLen(stResult.value); i++) {
+			if (not isSimpleValue(stResult.value[i])) {
 				stResult.valid = false;
 				arrayAppend(stResult.details, "settings.attributesForFaceting[#i#] is not a string");
 				structDelete(stResult.value, "attributesForFaceting");
 				break;
+			}
+			else {
+				stResult.value[i] = replace(lcase(stResult.value[i]), "filteronly(", "filterOnly(");
 			}
 		}
 
