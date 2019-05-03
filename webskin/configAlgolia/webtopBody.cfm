@@ -92,6 +92,18 @@
 								</cfif>
 							</td>
 						</tr>
+						
+						<tr>
+							<th></th>
+							<th><code>searchableAttributes</code></th>
+							<td>
+								#arrayToList(expandedConfig[indexName].settings.searchableAttributes, ", ")#
+								<cfif structKeyExists(stDiffs, "#indexName#.searchableAttributes")>
+									<strong style="color:red;">Changed</strong>
+								</cfif>
+							</td>
+						</tr>
+						
 						<tr>
 							<th></th>
 							<th><code>ranking</code></th>

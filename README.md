@@ -96,6 +96,7 @@ This should contain an entry for each content type you need to index. The value 
 | ------------ | --------------------------------------------------------- |
 | maxFieldSize | The maximum number of characters for any field. Def: 5000 |
 | attributesForFaceting | Array of properties available for faceted search. |
+| searchableAttributes | Array of properties available for searching. [Algolia Documentation](https://www.algolia.com/doc/api-reference/api-parameters/searchableAttributes/)|
 | ordering | Order of each specific index; defaults to `bfeatured desc` but might be used to create alternate index order by date. |
 
 
@@ -128,6 +129,7 @@ This should contain an entry for each content type you need to index. The value 
     },
     "settings": {
         "attributesForFaceting": [ "filterOnly(siteid)", "acategorylabels", "yearlabel", "datebreakdown" ],
+        "searchableAttributes": [ "title,teaser", "unordered(email)", "ordered(address1,address2)" ],
         "ordering": {
             "publishdate_desc": "publishdate desc"
         }

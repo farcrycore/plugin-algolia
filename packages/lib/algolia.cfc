@@ -132,6 +132,17 @@ component {
 		stResult.valid = stResult.valid AND stSub.valid;
 		arrayAppend(stResult.details, stSub.details, true);
 		stResult.value["attributesForFaceting"] = stSub.value;
+		
+		// searchableAttributes
+		if (structKeyExists(arguments.settings, "searchableAttributes")) {
+			stSub = validateSettingsSearchableAttributes(arguments.settings.searchableAttributes);
+		}
+		else {
+			stSub = validateSettingsSearchableAttributes();
+		}
+		stResult.valid = stResult.valid AND stSub.valid;
+		arrayAppend(stResult.details, stSub.details, true);
+		stResult.value["searchableAttributes"] = stSub.value;
 
 		// ordering
 		if (structKeyExists(arguments.settings, "ordering")) {
@@ -198,6 +209,35 @@ component {
 
 		if (not arrayFind(stResult.value, "typenamelabel")) {
 			arrayAppend(stResult.value, "typenamelabel")
+		}
+
+		return stResult;
+	}
+	
+	private struct function validateSettingsSearchableAttributes(
+		any searchableAttributes=[]
+		) 
+	{
+		var stResult = { valid: true, details: [], value: [] };
+		var i = 0;
+
+		if (not isArray(arguments.searchableAttributes)) {
+			stResult.valid = false;
+			arrayAppend(stResult.details, "settings.searchableAttributes is not an array");
+			return stResult;
+		}
+
+		stResult.value = arguments.searchableAttributes;
+		for (i=1; i<=arrayLen(stResult.value); i++) {
+			if (not isSimpleValue(stResult.value[i])) {
+				stResult.valid = false;
+				arrayAppend(stResult.details, "settings.searchableAttributes[#i#] is not a string");
+				structDelete(stResult.value, "searchableAttributes");
+				break;
+			}
+			else {
+				// any data fixing, eg force to lower case
+			}
 		}
 
 		return stResult;
@@ -456,6 +496,12 @@ component {
 				stResult["#replicaName#.attributesForFaceting"] = true;
 			}
 
+			// searchableAttributes
+			param name="algoliaSettings['searchableAttributes']" default=[];
+			if (not structKeyExists(algoliaSettings, "searchableAttributes") OR serializeJSON(arguments.indexConfig[replicaName].settings.searchableAttributes) neq serializeJSON(algoliaSettings.searchableAttributes)) {
+				stResult["#replicaName#.searchableAttributes"] = true;
+			}
+
 			if (not structKeyExists(algoliaSettings, "ranking") OR serializeJSON(arguments.indexConfig[replicaName].settings.ranking) neq serializeJSON(algoliaSettings.ranking)) {
 				stResult["#replicaName#.ranking"] = true;
 			}
@@ -480,6 +526,10 @@ component {
 
 			if (structKeyExists(arguments, "#replicaName#.attributesForFaceting")) {
 				stSettings["attributesForFaceting"] = indexConfig[replicaName].settings.attributesForFaceting;
+			}
+			
+			if (structKeyExists(arguments, "#replicaName#.searchableAttributes")) {
+				stSettings["searchableAttributes"] = indexConfig[replicaName].settings.searchableAttributes;
 			}
 
 			if (structKeyExists(arguments, "#replicaName#.replicas")) {
