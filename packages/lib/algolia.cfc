@@ -769,6 +769,7 @@ component {
 			apiTime = getTickCount() - start;
 
 			arguments.stObject.datetimeBuiltTo = builtToDate;
+			arguments.stObject.datetimelastupdated = Now();
 			application.fapi.setData(stProperties=arguments.stObject);
 			writeLog(file="algolia", text="Updated #count# #arguments.stObject.contentType# record/s");
 		}
