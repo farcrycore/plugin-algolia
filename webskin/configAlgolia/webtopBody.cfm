@@ -110,7 +110,7 @@
 							<td>
 								#arrayToList(expandedConfig[indexName].settings.ranking, ", ")#
 								<cfif structKeyExists(stDiffs, "#indexName#.ranking")>
-									<strong style="color:red;">Changed</strong><br>
+									<strong style="color:red;">Changed</strong>
 								</cfif>
 							</td>
 						</tr>
@@ -120,6 +120,27 @@
 							<td>
 								#arrayToList(expandedConfig[indexName].settings.replicas, ", ")#
 								<cfif structKeyExists(stDiffs, "#indexName#.replicas")>
+									<strong style="color:red;">Changed</strong>
+								</cfif>
+							</td>
+						</tr>
+
+						<tr>
+							<th></th>
+							<th><code>distinct</code></th>
+							<td>
+								#expandedConfig[indexName].settings.distinct#
+								<cfif structKeyExists(stDiffs, "#indexName#.distinct")>
+									<strong style="color:red;">Changed</strong>
+								</cfif>
+							</td>
+						</tr>
+						<tr>
+							<th></th>
+							<th><code>attributeForDistinct</code></th>
+							<td>
+								#expandedConfig[indexName].settings.attributeForDistinct#
+								<cfif structKeyExists(stDiffs, "#indexName#.attributeForDistinct")>
 									<strong style="color:red;">Changed</strong>
 								</cfif>
 							</td>
@@ -197,6 +218,8 @@
 
 	<cfoutput><h1>Algolia Index Settings</h1></cfoutput>
 	<cfdump var="#application.fc.lib.algolia.getSettings()#">
+	
+	<cfdump var="#application.fc.lib.algolia.getSettings(indexName='ajmdev_yaffa_dsp_company')#" label="ajmdev_yaffa_dsp_company">
 </cfif>
 
 <cfsetting enablecfoutputonly="false">

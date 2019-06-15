@@ -151,6 +151,15 @@ This should contain an entry for each content type you need to index. The value 
 }), true) />
 ```
 
+## Indexing Long Documents
+[Algolia Documentation](https://www.algolia.com/doc/guides/sending-and-managing-data/prepare-your-data/how-to/indexing-long-documents/)
+
+```
+            "settings": {
+				"distinct": 1,
+				"attributeForDistinct": "section"
+            }
+```
 
 ## Disambiuating Dates
 

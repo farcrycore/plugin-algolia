@@ -154,10 +154,55 @@ component {
 		stResult.valid = stResult.valid AND stSub.valid;
 		arrayAppend(stResult.details, stSub.details, true);
 		stResult.value["ordering"] = stSub.value;
+		
+		// Distinct
+		if (structKeyExists(arguments.settings, "distinct")) {
+			stSub = validateSettingsDistinct(arguments.settings.distinct);
+		} else {
+			stSub = validateSettingsDistinct();
+		}
+		stResult.valid = stResult.valid AND stSub.valid;
+		arrayAppend(stResult.details, stSub.details, true);
+		stResult.value["distinct"] = stSub.value;
+		
+		// attributeForDistinct
+		if (structKeyExists(arguments.settings, "attributeForDistinct")) {
+			stSub = validateSettingsAttributeForDistinct(arguments.settings.attributeForDistinct);
+		} else {
+			stSub = validateSettingsAttributeForDistinct();
+		}
+		stResult.valid = stResult.valid AND stSub.valid;
+		arrayAppend(stResult.details, stSub.details, true);
+		stResult.value["attributeForDistinct"] = stSub.value;
+		
+		// distinctAttributesToRetrieve
+		if (structKeyExists(arguments.settings, "distinctAttributesToRetrieve")) {
+			stSub = validateSettingsDistinctAttributesToRetrieve(arguments.settings.distinctAttributesToRetrieve);
+		} else {
+			stSub = validateSettingsDistinctAttributesToRetrieve();
+		}
+		stResult.valid = stResult.valid AND stSub.valid;
+		arrayAppend(stResult.details, stSub.details, true);
+		stResult.value["distinctAttributesToRetrieve"] = stSub.value;
+		
 
 		return stResult;
 	}
 
+	private struct function validateSettingsDistinctAttributesToRetrieve(any distinctAttributesToRetrieve=[]) {
+		var stResult = { valid: true, details: [], value: 0 };
+
+		if (not isArray(arguments.distinctAttributesToRetrieve)) {
+			stResult.valid = false;
+			arrayAppend(stResult.details, "settings.maxFieldSize is not an array");
+			return stResult;
+		}
+
+		stResult.value = arguments.distinctAttributesToRetrieve;
+
+		return stResult;
+	}
+	
 	private struct function validateSettingsMaxFieldSize(any maxFieldSize=5000) {
 		var stResult = { valid: true, details: [], value: 0 };
 
@@ -261,6 +306,30 @@ component {
 				break;
 			}
 		}
+
+		return stResult;
+	}
+	
+	private struct function validateSettingsDistinct(Number distinct=0) {
+		var stResult = { valid: true, details: [], value: [] };
+
+		// https://www.algolia.com/doc/api-reference/api-parameters/distinct/?language=javascript
+		if (! isValid("integer", arguments.distinct) OR arguments.distinct LT 0 OR arguments.distinct GT 4) {
+			stResult.valid = false;
+			arrayAppend(stResult.details, "settings.distinct '#arguments.distinct#' is not [0=false|1=true|2|3|4]");
+			return stResult;
+		}
+		stResult.value = arguments.distinct;
+
+		return stResult;
+	}
+	
+	private struct function validateSettingsAttributeForDistinct(string attributeForDistinct="") {
+		var stResult = { valid: true, details: [], value: [] };
+
+		// TODO - check it is a property
+		
+		stResult.value = arguments.attributeForDistinct;
 
 		return stResult;
 	}
@@ -509,6 +578,18 @@ component {
 			if (arrayLen(arguments.indexConfig[replicaName].settings.replicas) and (not structKeyExists(algoliaSettings, "replicas") OR serializeJSON(arguments.indexConfig[replicaName].settings.replicas) neq serializeJSON(algoliaSettings.replicas))) {
 				stResult["#replicaName#.replicas"] = true;
 			}
+			
+			// distinct
+			param name="algoliaSettings['distinct']" default=0;
+			if (not structKeyExists(algoliaSettings, "distinct") OR serializeJSON(arguments.indexConfig[replicaName].settings.distinct) neq serializeJSON(algoliaSettings.distinct)) {
+				stResult["#replicaName#.distinct"] = true;
+			}
+			
+			// attributeForDistinct
+			param name="algoliaSettings['attributeForDistinct']" default="";
+			if (not structKeyExists(algoliaSettings, "attributeForDistinct") OR serializeJSON(arguments.indexConfig[replicaName].settings.attributeForDistinct) neq serializeJSON(algoliaSettings.attributeForDistinct)) {
+				stResult["#replicaName#.attributeForDistinct"] = true;
+			}
 		}
 
 		return stResult;
@@ -539,7 +620,17 @@ component {
 			if (structKeyExists(arguments, "#replicaName#.ranking")) {
 				stSettings["ranking"] = indexConfig[replicaName].settings.ranking;
 			}
-
+			
+			if (structKeyExists(arguments, "#replicaName#.distinct")) {
+				stSettings["distinct"] = indexConfig[replicaName].settings.distinct;
+			}
+			
+			if (structKeyExists(arguments, "#replicaName#.attributeForDistinct")) {
+				stSettings["attributeForDistinct"] = indexConfig[replicaName].settings.attributeForDistinct;
+			}
+			
+			
+			// update settings
 			if (not structIsEmpty(stSettings)) {
 				setSettings(indexName=replicaName, data=serializeJSON(stSettings), forwardToReplicas=false);
 			}
@@ -641,13 +732,15 @@ component {
 	public struct function importIntoIndex(uuid objectID, string typename, struct stObject, required string operation) {
 		var oContent = "";
 		var strOut = createObject("java","java.lang.StringBuffer").init();
+		
 		var builtToDate = "";
 		var stResult = {};
 		var indexableTypes = getIndexableTypes();
 		var indexName = "";
 
 		if (not structKeyExists(arguments,"stObject")) {
-			arguments.stObject = application.fapi.getContentData(typename=arguments.typename,objectid=arguments.objectid);
+			// arguments.stObject = application.fapi.getContentData(typename=arguments.typename,objectid=arguments.objectid);
+			arguments.stObject = application.fapi.getContentObject(typename=arguments.typename,objectid=arguments.objectid);
 		}
 
 		oContent = application.fapi.getContentType(typename=arguments.stObject.typename);
@@ -655,6 +748,9 @@ component {
 		strOut.append('{ "requests": [ ');
 
 		for (indexName in indexableTypes[arguments.stObject.typename]) {
+			var stConfig            = getExpandedConfig()[indexName].types[arguments.stObject.typename];
+			var stChunkedProperties = getChunkedProperties(stConfig);
+
 			if (
 				arguments.operation eq "updated" and
 				(
@@ -662,16 +758,89 @@ component {
 					(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stObject))
 				)
 			) {
+				
+				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
+					stResult["typename"] = arguments.stObject.typename;
+					stResult["count"] = 0;
+					stResult["builtToDate"] = builtToDate;	
+writeLog(file="ajm-algolia-draft", text="arguments.stObject = #serializeJSON(arguments.stObject)#");	
+					return 	stResult;
+				}
+				
+				var strOutObject = createObject("java","java.lang.StringBuffer").init();
+				processObject(indexName, strOutObject, arguments.stObject);
+				stOutObject = deserializeJSON(strOutObject);
+	
+				for ( var chunkProperty in stChunkedProperties ) {	
+					stChunkedProperties[chunkProperty]['data'] = stOutObject[chunkProperty];
+					StructDelete(stOutObject, chunkProperty);
+				}
+				
 				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
-				processObject(indexName, strOut, arguments.stObject);
+				strOut.append(serializeJSON(stOutObject));
 				strOut.append(' }, ');
+				
 				builtToDate = arguments.stObject.datetimeLastUpdated;
+				
+				// create chunks
+				for ( var chunkProperty in stChunkedProperties ) {
+					
+					var data = stChunkedProperties[chunkProperty]['data'];
+					
+					if (isArray(data)) {
+						var stChunkObject = {};
+						
+						// copy duplicated fields - data used in displaying search results
+						for (var field in stChunkedProperties[chunkProperty]['distinctAttributesToRetrieve']) {
+							stChunkObject[field] = stOutObject[field];
+						}
+						
+						for (var i = 1; i <= arrayLen(data); i++) {
+							
+							stChunkObject['objectID'] ="#arguments.stObject.objectid#_#chunkProperty#-#i#";
+							
+							if (isStruct(data[i])) {
+								stChunkObject.Append(data[i]);
+							} // TODO: other types
+							
+							strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+							strOut.append(serializeJSON(stChunkObject));
+writeLog(file="ajm-algolia-chunk", text="6 Algolia stChunkObject = #serializeJSON(stChunkObject)#");
+							strOut.append(' }, ');
+						}
+						
+					} // TODO: string - break up be settings.maxFieldSize charactures
+					
+					
+				}
 			}
 			else if (arguments.operation eq "deleted") {
+				// arguments.stObject = application.fapi.getContentData(typename=arguments.stObject.typename,objectid=arguments.stObject.objectid);
+				arguments.stObject = application.fapi.getContentObject(typename=arguments.stObject.typename,objectid=arguments.stObject.objectid);
 				strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
 				strOut.append('{ "objectID": "');
 				strOut.append(arguments.stObject.objectid);
 				strOut.append('" } }, ');
+				
+				// delete chunks
+				for ( var chunkProperty in stChunkedProperties ) {
+				if (StructKeyExists(arguments.stObject, stChunkedProperties[chunkProperty]['from'])) {
+					var data = arguments.stObject[stChunkedProperties[chunkProperty]['from']];
+						
+					if (isArray(data)) {
+						for (var i = 1; i <= arrayLen(data); i++) {
+							strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+							strOut.append('{ "objectID": "');
+							strOut.append("#arguments.stObject.objectid#_#chunkProperty#-#i#");
+							strOut.append('" } }, ');	
+						}
+					} // TODO: string - break up be settings.maxFieldSize charactures
+				} else {
+writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chunkProperty]['from']#' | arguments.stObject = #serializeJSON(arguments.stObject)#");
+				}	
+				}
+				
 				builtToDate = now();
 			}
 		}
@@ -691,7 +860,8 @@ component {
 		stResult["typename"] = arguments.stObject.typename;
 		stResult["count"] = 1;
 		stResult["builtToDate"] = builtToDate;
-
+writeLog(file="ajm-algolia-importIntoIndex", text="stResult #serializeJSON(stResult)#");
+// abort;
 		return stResult;
 	}
 
@@ -729,16 +899,68 @@ component {
 		start = getTickCount();
 		for (row in qContent) {
 			for (indexName in indexableTypes[qContent.typename]) {
+				stContent = oContent.getData(objectid=qContent.objectid);
+				var stConfig            = getExpandedConfig()[indexName].types[stContent.typename];
+				var stChunkedProperties = getChunkedProperties(stConfig);
+writeLog(file="ajm-algolia-chunk", text="1 BULK stChunkedProperties = #serializeJSON(stChunkedProperties)#");			
 				if (qContent.operation eq "updated") {
-					stContent = oContent.getData(objectid=qContent.objectid);
-
+					
+		
+writeLog(file="ajm-algolia-bulk", text="stContent = #serializeJSON(stContent)#");
 					if (
 						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
 						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
 					) {
-						strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
-						processObject(indexName, strOut, stContent);
+						
+						// Approved only - draft records do not get updated to approved; new records addred to index each time object goes to draft
+						if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
+writeLog(file="ajm-algolia-draft", text="BULK stContent = #serializeJSON(stContent)#");
+							break;
+						}
+						var strOutObject = createObject("java","java.lang.StringBuffer").init();
+						processObject(indexName, strOutObject, stContent);
+						stOutObject = deserializeJSON(strOutObject);
+writeLog(file="ajm-algolia-chunk", text="BULK 2a stOutObject = #serializeJSON(stOutObject)#");	
+						for ( var chunkProperty in stChunkedProperties ) {	
+writeLog(file="ajm-algolia-chunk", text="BULK 2b stOutObject[#chunkProperty#] = #serializeJSON(stOutObject[chunkProperty])#");	
+							stChunkedProperties[chunkProperty]['data'] = stOutObject[chunkProperty];
+							StructDelete(stOutObject, chunkProperty);
+						}
+writeLog(file="ajm-algolia-chunk", text="BULK 2c stOutObject with DATA = #serializeJSON(stOutObject)#");						
+						strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+						strOut.append(serializeJSON(stOutObject));
 						strOut.append(' }, ');
+						
+						// create chunks
+						for ( var chunkProperty in stChunkedProperties ) {
+writeLog(file="ajm-algolia-chunk", text="BULK 3 chunkProperty = #serializeJSON(chunkProperty)#");	
+							var data = stChunkedProperties[chunkProperty]['data'];
+writeLog(file="ajm-algolia-chunk", text="BULK 4 data = #serializeJSON(data)#");							
+							if (isArray(data)) {
+								var stChunkObject = {};
+								
+								// copy duplicated fields - data used in displaying search results
+								for (var field in stChunkedProperties[chunkProperty]['distinctAttributesToRetrieve']) {
+									stChunkObject[field] = stOutObject[field];
+								}
+writeLog(file="ajm-algolia-chunk", text="BULK 5 stChunkObject = #serializeJSON(stChunkObject)#");			
+								for (var i = 1; i <= arrayLen(data); i++) {
+									
+									stChunkObject['objectID'] ="#stContent.objectid#_#chunkProperty#-#i#";
+									
+									if (isStruct(data[i])) {
+										stChunkObject.Append(data[i]);
+									} // TODO: other types
+writeLog(file="ajm-algolia-chunk", text="6 BULK Algolia stChunkObject = #serializeJSON(stChunkObject)#");			
+									strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+									strOut.append(serializeJSON(stChunkObject));
+									strOut.append(' }, ');
+								}
+								
+							} // TODO: string - break up be settings.maxFieldSize charactures
+							
+							
+						}
 					}
 				}
 				else if (qContent.operation eq "deleted") {
@@ -746,6 +968,20 @@ component {
 					strOut.append('{ "objectID": "');
 					strOut.append(qContent.objectid);
 					strOut.append('" } }, ');
+					
+					// delete chunks
+					for ( var chunkProperty in stChunkedProperties ) {
+						var data = stContent[stChunkedProperties[chunkProperty]['from']];
+						
+						if (isArray(data)) {
+							for (var i = 1; i <= arrayLen(data); i++) {
+								strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+								strOut.append('{ "objectID": "');
+								strOut.append("#qContent.objectid#_#chunkProperty#-#i#");
+								strOut.append('" } }, ');	
+							}
+						} // TODO: string - break up be settings.maxFieldSize charactures
+					}
 				}
 			}
 
@@ -825,7 +1061,7 @@ component {
 
 		arguments.out.append(' }');
 	}
-
+	
 
 	// These are the default processing functions for the various property types. The import will first look for
 	// process[ftType], then for process[type]
@@ -1020,6 +1256,7 @@ component {
 		var apiKey = "";
 		var applicationID = application.fapi.getConfig("algolia", "applicationID");
 		var subdomain = lcase(applicationID);
+		var cfhttp = {}
 
 		if (arguments.method eq "") {
 			if (len(arguments.data)) {
@@ -1056,9 +1293,10 @@ component {
 			if (len(arguments.data)) {
 				cfhttpparam(type="header", name="Content-Type", value="application/json");
 				cfhttpparam(type="body", value=arguments.data);
+writelog(file="ajm-algolia-cfhhtp", text="body: #arguments.data#");
 			}
 		}
-
+try {
 		if (not reFindNoCase("^20. ",cfhttp.statuscode) and not reFindNoCase("^404 ",cfhttp.statuscode)) {
 			throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
 				'resource' = arguments.resource,
@@ -1088,18 +1326,63 @@ component {
 				return {};
 			}
 		}
+	} catch (any error) {
+writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc error: #error.message# | #Error.detail#", type="error");
+writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc arguments.data: #arguments.data#", type="error");
+
+		WriteDump(var="#cfhttp#", label="cfhttp");
+		WriteDump(var="#arguments#", label="arguments");
+		WriteDump(var="#error#", label="error", abort=true);
+		
+	}
 
 		return deserializeJSON(cfhttp.filecontent.toString());
 	}
 
 	public struct function customBatch(required string data) {
 		var indexName = application.fapi.getConfig("algolia", "indexName");
+		
+		// check size of request string
+		var stReturn = {};
+		var maxFieldSize = 102400; //20480; // TODO: add to settings 10 KB for Pro, Starter, or Free accounts | 20 KB for legacy (Essential and Plus) | 100 KB or more for Enterprise plans.
 
-		return makeRequest(
-			method = "POST",
-			resource = "/indexes/*/batch",
-			data = arguments.data
-		);
+		// break up request array of structs
+		var stData = deserializeJSON(arguments.data);
+		var aRequests = stData['requests'];
+		var recordCount = aRequests.len();
+		var currentObject = 1
+			
+		var batchData = {};
+		batchData['requests'] = [];
+			
+		// loop over array - check SizeOf
+		while (currentObject <= recordCount) {
+			batchData['requests'].Append(aRequests[currentObject]);
+ writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK BUILD currentObject=#currentObject# of #recordCount# | SizeOf=#SizeOf(serializeJSON(batchData))#", type="info");					
+			if (SizeOf(serializeJSON(batchData)) GT maxFieldSize OR currentObject == recordCount)  {
+				
+				if (SizeOf(serializeJSON(batchData)) GT maxFieldSize) {
+					if (batchData['requests'].len() == 1) {
+						throw(type='Application',message="Record is too big", detail="size of data sent to Algolia larger than #NumberFormat(maxFieldSize)# bytes", extendedInfo="Data=#serializeJSON(batchData)#");
+					}
+					
+					batchData['requests'].DeleteAt(batchData['requests'].len());
+				}
+					
+ writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK POST batchData: SizeOf=#SizeOf(serializeJSON(batchData))# #serializeJSON(batchData)#", type="info");	
+				stReturn[currentObject] = makeRequest(
+					method = "POST",
+					resource = "/indexes/*/batch",
+					data = serializeJSON(batchData)
+				); // */
+				
+				batchData = {};
+				batchData['requests'] = [];
+					
+			}
+			currentObject++;
+		}
+		return stReturn;
 	}
 
 	public struct function getSettings(string indexName=application.fapi.getConfig("algolia", "indexName")) {
@@ -1112,7 +1395,9 @@ component {
 	}
 
 	public struct function setSettings(string indexName=application.fapi.getConfig("algolia", "indexName"), required string data, boolean forwardToReplicas=false) {
-
+writeLog(file="ajm-algolia", text="setSettings() arguments.indexName: #arguments.indexName#", type="info");
+writeLog(file="ajm-algolia", text="setSettings() arguments.data: #arguments.data#", type="info");
+writeLog(file="ajm-algolia", text="setSettings() arguments.forwardToReplicas: #arguments.forwardToReplicas#", type="info");
 		return makeRequest(
 			method = "PUT",
 			resource = "/indexes/#arguments.indexName#/settings",
@@ -1160,5 +1445,35 @@ component {
 			"(expirydate > #timestampNow# OR expirydate = -1)"
 		], " AND ");
 	}
+	
+	private any function getSetting(
+		string indexName=application.fapi.getConfig("algolia", "indexName"),
+		required string settingName
+	) {
+		var indexConfig = getExpandedConfig();
+		
+		if (
+			ARGUMENTS.indexName != '' AND 
+			StructKeyExists(indexConfig, ARGUMENTS.indexName) AND 
+			StructKeyExists(indexConfig[ARGUMENTS.indexName], 'settings') AND 
+			StructKeyExists(indexConfig[ARGUMENTS.indexName]['settings'], ARGUMENTS.settingName)
+		) {
+			return indexConfig[ARGUMENTS.indexName]['settings'][ARGUMENTS.settingName];
+		} 
+		
+		return "";
+		
+	}
 
+	private struct function getChunkedProperties(required struct stConfig) {
+		var stChunkedProperties = {};
+		
+		for (var property in arguments.stConfig) {
+			if (structKeyExists(arguments.stConfig[property], 'chunked') AND arguments.stConfig[property]['chunked']) {
+				stChunkedProperties.append({"#property#":#arguments.stConfig[property]#});
+			}
+		}
+	
+		return stChunkedProperties;
+	}
 }
