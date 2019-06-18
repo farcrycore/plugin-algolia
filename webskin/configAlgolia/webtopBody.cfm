@@ -218,8 +218,6 @@
 
 	<cfoutput><h1>Algolia Index Settings</h1></cfoutput>
 	<cfdump var="#application.fc.lib.algolia.getSettings()#">
-	
-	<cfdump var="#application.fc.lib.algolia.getSettings(indexName='ajmdev_yaffa_dsp_company')#" label="ajmdev_yaffa_dsp_company">
 </cfif>
 
 <cfsetting enablecfoutputonly="false">
