@@ -782,13 +782,36 @@ writeLog(file="ajm-algolia-draft", text="arguments.stObject = #serializeJSON(arg
 				strOut.append(' }, ');
 				
 				builtToDate = arguments.stObject.datetimeLastUpdated;
-				
+
+
+
 				// create chunks
 				for ( var chunkProperty in stChunkedProperties ) {
 					
 					var data = stChunkedProperties[chunkProperty]['data'];
 					
 					if (isArray(data)) {
+						
+// delete existsing chunks				
+// https://www.algolia.com/doc/rest-api/search/#delete-by
+/* WARNING
+	This endpoint doesn’t support all the options of a query, only its filters (numeric, facet, or tag) and geo queries. 
+	It also doesn’t accept empty filters or query.
+
+try {
+	var deleteData = {"params":"objectID=#arguments.stObject.objectid#_#chunkProperty#-%"} ;
+	writeLog(file="ajm-algolia-deleteByQuery", text="deleteData=#serializeJSON(deleteData)#");
+	var stChunkDeleteResults = makeRequest(
+				method = "POST",
+				resource = "/indexes/#indexName#/deleteByQuery",
+				data = serializeJSON(deleteData)
+			);
+	writeLog(file="ajm-algolia-deleteByQuery", text="stChunkDeleteResults=#serializeJSON(stChunkDeleteResults)#");
+} catch (any error) {
+	writeLog(file="ajm-algolia-deleteByQuery", text="error=#serializeJSON(error)#", type="error");	
+	abort showerror="deleteByQuery: #error.message# #error.detail#";
+}	
+*/	
 						var stChunkObject = {};
 						
 						// copy duplicated fields - data used in displaying search results
@@ -806,13 +829,30 @@ writeLog(file="ajm-algolia-draft", text="arguments.stObject = #serializeJSON(arg
 							
 							strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
 							strOut.append(serializeJSON(stChunkObject));
-writeLog(file="ajm-algolia-chunk", text="6 Algolia stChunkObject = #serializeJSON(stChunkObject)#");
+// writeLog(file="ajm-algolia-chunk", text="6 Algolia stChunkObject = #serializeJSON(stChunkObject)#");
 							strOut.append(' }, ');
 						}
+// delete any chunks after i
+// DELETE does not return 404 if objectID not found; need to GET first :-(
+	var bDeleteChunk = true;
+	var stChunkDeleteResults = {};
+	while (bDeleteChunk) {
+		stChunkDeleteResults = makeRequest(	method = "GET",throwOn404= false, resource = "/indexes/#indexName#/#arguments.stObject.objectid#_#chunkProperty#-#i#");
+		
+		if (! StructIsEmpty(stChunkDeleteResults)) {
+// writeLog(file="ajm-algolia-deleteByQuery", text="DELETE: resource=/indexes/#indexName#/#arguments.stObject.objectid#_#chunkProperty#-#i#");
+			stChunkDeleteResults = makeRequest(	method = "DELETE",resource = "/indexes/#indexName#/#arguments.stObject.objectid#_#chunkProperty#-#i#");
+			i++;
+		} else {
+			bDeleteChunk = false;
+		}
+	}	
+
 						
 					} // TODO: string - break up be settings.maxFieldSize charactures
-					
-					
+
+
+
 				}
 			}
 			else if (arguments.operation eq "deleted") {
@@ -825,20 +865,20 @@ writeLog(file="ajm-algolia-chunk", text="6 Algolia stChunkObject = #serializeJSO
 				
 				// delete chunks
 				for ( var chunkProperty in stChunkedProperties ) {
-				if (StructKeyExists(arguments.stObject, stChunkedProperties[chunkProperty]['from'])) {
-					var data = arguments.stObject[stChunkedProperties[chunkProperty]['from']];
-						
-					if (isArray(data)) {
-						for (var i = 1; i <= arrayLen(data); i++) {
-							strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
-							strOut.append('{ "objectID": "');
-							strOut.append("#arguments.stObject.objectid#_#chunkProperty#-#i#");
-							strOut.append('" } }, ');	
-						}
-					} // TODO: string - break up be settings.maxFieldSize charactures
-				} else {
+					if (StructKeyExists(arguments.stObject, stChunkedProperties[chunkProperty]['from'])) {
+						var data = arguments.stObject[stChunkedProperties[chunkProperty]['from']];
+							
+						if (isArray(data)) {
+							for (j = 1; j <= arrayLen(data); j++) {
+								strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+								strOut.append('{ "objectID": "');
+								strOut.append("#arguments.stObject.objectid#_#chunkProperty#-#j#");
+								strOut.append('" } }, ');	
+							}
+						} // TODO: string - break up be settings.maxFieldSize charactures
+					} else {
 writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chunkProperty]['from']#' | arguments.stObject = #serializeJSON(arguments.stObject)#");
-				}	
+					}
 				}
 				
 				builtToDate = now();
@@ -860,7 +900,7 @@ writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chun
 		stResult["typename"] = arguments.stObject.typename;
 		stResult["count"] = 1;
 		stResult["builtToDate"] = builtToDate;
-writeLog(file="ajm-algolia-importIntoIndex", text="stResult #serializeJSON(stResult)#");
+// writeLog(file="ajm-algolia-importIntoIndex", text="stResult #serializeJSON(stResult)#");
 // abort;
 		return stResult;
 	}
@@ -881,6 +921,8 @@ writeLog(file="ajm-algolia-importIntoIndex", text="stResult #serializeJSON(stRes
 		var apiTime = 0;
 		var indexableTypes = getIndexableTypes();
 		var indexName = "";
+		var i = 0;
+		var j = 0;
 
 		if (not structKeyExists(arguments,"stObject")) {
 			arguments.stObject = application.fapi.getContentObject(typename='alContentType', objectid=arguments.objectid);
@@ -902,11 +944,11 @@ writeLog(file="ajm-algolia-importIntoIndex", text="stResult #serializeJSON(stRes
 				stContent = oContent.getData(objectid=qContent.objectid);
 				var stConfig            = getExpandedConfig()[indexName].types[stContent.typename];
 				var stChunkedProperties = getChunkedProperties(stConfig);
-writeLog(file="ajm-algolia-chunk", text="1 BULK stChunkedProperties = #serializeJSON(stChunkedProperties)#");			
+// writeLog(file="ajm-algolia-chunk", text="1 BULK stChunkedProperties = #serializeJSON(stChunkedProperties)#");			
 				if (qContent.operation eq "updated") {
 					
 		
-writeLog(file="ajm-algolia-bulk", text="stContent = #serializeJSON(stContent)#");
+// writeLog(file="ajm-algolia-bulk", text="stContent = #serializeJSON(stContent)#");
 					if (
 						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
 						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
@@ -914,28 +956,28 @@ writeLog(file="ajm-algolia-bulk", text="stContent = #serializeJSON(stContent)#")
 						
 						// Approved only - draft records do not get updated to approved; new records addred to index each time object goes to draft
 						if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
-writeLog(file="ajm-algolia-draft", text="BULK stContent = #serializeJSON(stContent)#");
+// writeLog(file="ajm-algolia-draft", text="BULK stContent = #serializeJSON(stContent)#");
 							break;
 						}
 						var strOutObject = createObject("java","java.lang.StringBuffer").init();
 						processObject(indexName, strOutObject, stContent);
 						stOutObject = deserializeJSON(strOutObject);
-writeLog(file="ajm-algolia-chunk", text="BULK 2a stOutObject = #serializeJSON(stOutObject)#");	
+// writeLog(file="ajm-algolia-chunk", text="BULK 2a stOutObject = #serializeJSON(stOutObject)#");	
 						for ( var chunkProperty in stChunkedProperties ) {	
-writeLog(file="ajm-algolia-chunk", text="BULK 2b stOutObject[#chunkProperty#] = #serializeJSON(stOutObject[chunkProperty])#");	
+// writeLog(file="ajm-algolia-chunk", text="BULK 2b stOutObject[#chunkProperty#] = #serializeJSON(stOutObject[chunkProperty])#");	
 							stChunkedProperties[chunkProperty]['data'] = stOutObject[chunkProperty];
 							StructDelete(stOutObject, chunkProperty);
 						}
-writeLog(file="ajm-algolia-chunk", text="BULK 2c stOutObject with DATA = #serializeJSON(stOutObject)#");						
+// writeLog(file="ajm-algolia-chunk", text="BULK 2c stOutObject with DATA = #serializeJSON(stOutObject)#");						
 						strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
 						strOut.append(serializeJSON(stOutObject));
 						strOut.append(' }, ');
 						
 						// create chunks
 						for ( var chunkProperty in stChunkedProperties ) {
-writeLog(file="ajm-algolia-chunk", text="BULK 3 chunkProperty = #serializeJSON(chunkProperty)#");	
+// writeLog(file="ajm-algolia-chunk", text="BULK 3 chunkProperty = #serializeJSON(chunkProperty)#");	
 							var data = stChunkedProperties[chunkProperty]['data'];
-writeLog(file="ajm-algolia-chunk", text="BULK 4 data = #serializeJSON(data)#");							
+// writeLog(file="ajm-algolia-chunk", text="BULK 4 data = #serializeJSON(data)#");							
 							if (isArray(data)) {
 								var stChunkObject = {};
 								
@@ -943,23 +985,38 @@ writeLog(file="ajm-algolia-chunk", text="BULK 4 data = #serializeJSON(data)#");
 								for (var field in stChunkedProperties[chunkProperty]['distinctAttributesToRetrieve']) {
 									stChunkObject[field] = stOutObject[field];
 								}
-writeLog(file="ajm-algolia-chunk", text="BULK 5 stChunkObject = #serializeJSON(stChunkObject)#");			
-								for (var i = 1; i <= arrayLen(data); i++) {
+// writeLog(file="ajm-algolia-chunk", text="BULK 5 stChunkObject = #serializeJSON(stChunkObject)#");			
+								for (i = 1; i <= arrayLen(data); i++) {
 									
 									stChunkObject['objectID'] ="#stContent.objectid#_#chunkProperty#-#i#";
 									
 									if (isStruct(data[i])) {
 										stChunkObject.Append(data[i]);
 									} // TODO: other types
-writeLog(file="ajm-algolia-chunk", text="6 BULK Algolia stChunkObject = #serializeJSON(stChunkObject)#");			
+// writeLog(file="ajm-algolia-chunk", text="6 BULK Algolia stChunkObject = #serializeJSON(stChunkObject)#");			
 									strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
 									strOut.append(serializeJSON(stChunkObject));
 									strOut.append(' }, ');
 								}
-								
+// delete any chunks after i
+// DELETE does not return 404 if objectID not found; need to GET first :-(
+	var bDeleteChunk = true;
+	var stChunkDeleteResults = {};
+	while (bDeleteChunk) {
+		stChunkDeleteResults = makeRequest(	method = "GET",throwOn404= false, resource = "/indexes/#indexName#/#stContent.objectid#_#chunkProperty#-#i#");
+		
+		if (! StructIsEmpty(stChunkDeleteResults)) {
+// writeLog(file="ajm-algolia-deleteByQuery", text="BULK DELETE: resource=/indexes/#indexName#/#stContent.objectid#_#chunkProperty#-#i#");
+			stChunkDeleteResults = makeRequest(	method = "DELETE",resource = "/indexes/#indexName#/#stContent.objectid#_#chunkProperty#-#i#");
+			i++;
+		} else {
+			bDeleteChunk = false;
+		}
+	}
 							} // TODO: string - break up be settings.maxFieldSize charactures
 							
-							
+
+
 						}
 					}
 				}
@@ -974,10 +1031,10 @@ writeLog(file="ajm-algolia-chunk", text="6 BULK Algolia stChunkObject = #seriali
 						var data = stContent[stChunkedProperties[chunkProperty]['from']];
 						
 						if (isArray(data)) {
-							for (var i = 1; i <= arrayLen(data); i++) {
+							for (j = 1; j <= arrayLen(data); j++) {
 								strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
 								strOut.append('{ "objectID": "');
-								strOut.append("#qContent.objectid#_#chunkProperty#-#i#");
+								strOut.append("#qContent.objectid#_#chunkProperty#-#j#");
 								strOut.append('" } }, ');	
 							}
 						} // TODO: string - break up be settings.maxFieldSize charactures
@@ -1293,9 +1350,9 @@ writeLog(file="ajm-algolia-chunk", text="6 BULK Algolia stChunkObject = #seriali
 			if (len(arguments.data)) {
 				cfhttpparam(type="header", name="Content-Type", value="application/json");
 				cfhttpparam(type="body", value=arguments.data);
-writelog(file="ajm-algolia-cfhhtp", text="body: #arguments.data#");
 			}
 		}
+// writeLog(file="ajm-algolia-makeRequest", text="ALGOLIA.cfc cfhttp #resourceURL#: #serializeJSON(cfhttp)#", type="info");
 try {
 		if (not reFindNoCase("^20. ",cfhttp.statuscode) and not reFindNoCase("^404 ",cfhttp.statuscode)) {
 			throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
@@ -1327,8 +1384,8 @@ try {
 			}
 		}
 	} catch (any error) {
-writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc error: #error.message# | #Error.detail#", type="error");
-writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc arguments.data: #arguments.data#", type="error");
+writeLog(file="ajm-algolia-makeRequest", text="ALGOLIA.cfc error: #error.message# | #Error.detail#", type="error");
+writeLog(file="ajm-algolia-makeRequest", text="ALGOLIA.cfc arguments.data: #arguments.data#", type="error");
 
 		WriteDump(var="#cfhttp#", label="cfhttp");
 		WriteDump(var="#arguments#", label="arguments");
@@ -1358,7 +1415,7 @@ writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc arguments.data: #arg
 		// loop over array - check SizeOf
 		while (currentObject <= recordCount) {
 			batchData['requests'].Append(aRequests[currentObject]);
- writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK BUILD currentObject=#currentObject# of #recordCount# | SizeOf=#SizeOf(serializeJSON(batchData))#", type="info");					
+ // writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK BUILD currentObject=#currentObject# of #recordCount# | SizeOf=#SizeOf(serializeJSON(batchData))#", type="info");					
 			if (SizeOf(serializeJSON(batchData)) GT maxFieldSize OR currentObject == recordCount)  {
 				
 				if (SizeOf(serializeJSON(batchData)) GT maxFieldSize) {
@@ -1369,7 +1426,7 @@ writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc arguments.data: #arg
 					batchData['requests'].DeleteAt(batchData['requests'].len());
 				}
 					
- writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK POST batchData: SizeOf=#SizeOf(serializeJSON(batchData))# #serializeJSON(batchData)#", type="info");	
+ // writeLog(file="ajm-algolia-customBatch", text="customBatch() CHUNK POST batchData: SizeOf=#SizeOf(serializeJSON(batchData))# #serializeJSON(batchData)#", type="info");	
 				stReturn[currentObject] = makeRequest(
 					method = "POST",
 					resource = "/indexes/*/batch",
@@ -1395,9 +1452,7 @@ writeLog(file="ajm-algolia-capabilities", text="ALGOLIA.cfc arguments.data: #arg
 	}
 
 	public struct function setSettings(string indexName=application.fapi.getConfig("algolia", "indexName"), required string data, boolean forwardToReplicas=false) {
-writeLog(file="ajm-algolia", text="setSettings() arguments.indexName: #arguments.indexName#", type="info");
-writeLog(file="ajm-algolia", text="setSettings() arguments.data: #arguments.data#", type="info");
-writeLog(file="ajm-algolia", text="setSettings() arguments.forwardToReplicas: #arguments.forwardToReplicas#", type="info");
+
 		return makeRequest(
 			method = "PUT",
 			resource = "/indexes/#arguments.indexName#/settings",
