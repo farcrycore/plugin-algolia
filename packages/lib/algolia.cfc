@@ -348,12 +348,13 @@ component {
 				"settings": duplicate(arguments.indexConfig.settings),
 				"replica": true
 			};
-			if (structKeyExists(stResult[replicaName], "replicas")) {
-				structDelete(stResult[replicaName], "replicas");
-			}
-			if (structKeyExists(stResult[replicaName], "ordering")) {
-				structDelete(stResult[replicaName], "ordering");
-			}
+
+			if (structKeyExists(stResult[replicaName]["settings"], "replicas")) {
+				stResult[replicaName]["settings"]["replicas"] = {};
+ 			}
+			if (structKeyExists(stResult[replicaName]["settings"], "ordering")) {
+				stResult[replicaName]["settings"]["ordering"] = {};
+ 			}
 
 			stResult[replicaName]["settings"]["ranking"] = [];
 			for (orderValue in listToArray(arguments.indexConfig.settings.ordering[key])) {
