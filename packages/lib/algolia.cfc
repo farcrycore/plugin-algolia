@@ -351,11 +351,11 @@ component {
 
 			if (structKeyExists(stResult[replicaName]["settings"], "replicas")) {
 				stResult[replicaName]["settings"]["replicas"] = {};
- 			}
+			}
 			if (structKeyExists(stResult[replicaName]["settings"], "ordering")) {
 				stResult[replicaName]["settings"]["ordering"] = {};
- 			}
-
+			}
+			
 			stResult[replicaName]["settings"]["ranking"] = [];
 			for (orderValue in listToArray(arguments.indexConfig.settings.ordering[key])) {
 				switch (listLast(orderValue, " ")) {
