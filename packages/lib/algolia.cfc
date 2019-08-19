@@ -955,14 +955,24 @@ writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chun
 						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
 					) {
 						
-						// Approved only - draft records do not get updated to approved; new records addred to index each time object goes to draft
+// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+
 						if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
 // writeLog(file="ajm-algolia-draft", text="BULK stContent = #serializeJSON(stContent)#");
 							break;
 						}
+
+
 						var strOutObject = createObject("java","java.lang.StringBuffer").init();
 						processObject(indexName, strOutObject, stContent);
+						try {
 						stOutObject = deserializeJSON(strOutObject);
+							}
+							catch (any error) {
+								writeLog(file="ajm-algolia", text="deserializeJSONstrOutObject=#strOutObject#");
+								abort;
+							}
+						
 // writeLog(file="ajm-algolia-chunk", text="BULK 2a stOutObject = #serializeJSON(stOutObject)#");	
 						for ( var chunkProperty in stChunkedProperties ) {	
 // writeLog(file="ajm-algolia-chunk", text="BULK 2b stOutObject[#chunkProperty#] = #serializeJSON(stOutObject[chunkProperty])#");	
@@ -1054,11 +1064,12 @@ writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chun
 		}
 		processingTime += getTickCount() - start;
 
-		strOut.delete(strOut.length()-2, strOut.length());
+// AJM - does it matter if there is an extra comma space at end of string?		strOut.delete(strOut.length()-2, strOut.length());
 		strOut.append(' ] }');
 
 		if (count) {
 			start = getTickCount();
+	
 			stResult = customBatch(strOut.toString());
 			apiTime = getTickCount() - start;
 
@@ -1135,7 +1146,7 @@ writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chun
 			arguments.out.append(numberFormat(round(value.getTime() / 1000), "0"));
 		}
 		else {
-			arguments.out.append("-1")
+			arguments.out.append("-1");
 		}
 	}
 
