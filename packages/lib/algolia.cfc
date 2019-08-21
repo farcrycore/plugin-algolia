@@ -663,6 +663,16 @@ component {
 					(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stObject))
 				)
 			) {
+				
+				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
+					stResult["typename"] = arguments.stObject.typename;
+					stResult["count"] = 0;
+					stResult["builtToDate"] = builtToDate;	
+	
+					return 	stResult;
+				}
+				
 				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
 				processObject(indexName, strOut, arguments.stObject);
 				strOut.append(' }, ');
@@ -731,6 +741,16 @@ component {
 		for (row in qContent) {
 			for (indexName in indexableTypes[qContent.typename]) {
 				if (qContent.operation eq "updated") {
+					
+				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
+					stResult["typename"] = arguments.stObject.typename;
+					stResult["count"] = 0;
+					stResult["builtToDate"] = builtToDate;	
+
+					return 	stResult;
+				}
+					
 					stContent = oContent.getData(objectid=qContent.objectid);
 
 					if (
