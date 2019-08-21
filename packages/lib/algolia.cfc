@@ -770,7 +770,7 @@ component {
 					strOut.append(qContent.objectid);
 					strOut.append('" } }, ');
 				}
-			}
+			} //indexName
 
 			if (
 				strOut.length() * ((qContent.currentrow+1) / qContent.currentrow) gt arguments.requestSize or
@@ -780,10 +780,11 @@ component {
 				count = qContent.currentrow;
 				break;
 			}
-		}
+		} // row
+		
 		processingTime += getTickCount() - start;
 
-		strOut.delete(strOut.length()-2, strOut.length());
+		if (right(strOut, 2) == ', ') strOut.delete(strOut.length()-2, strOut.length());
 		strOut.append(' ] }');
 
 		if (count) {
