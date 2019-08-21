@@ -580,12 +580,6 @@ component {
 		if (not this.typeSetup[arguments.stObject.typename]) {
 			return false;
 		}
-		
-		/*
-		if (StructKeyExists(arguments.stObject, 'status') && arguments.stObject.status != 'approved') {
-			return false;
-		}
-		*/
 
 		var indexableTypes = getIndexableTypes();
 		return structKeyExists(indexableTypes, arguments.stObject.typename);
