@@ -1064,7 +1064,7 @@ writeLog(file="ajm-algolia-delete", text="NO property '#stChunkedProperties[chun
 		}
 		processingTime += getTickCount() - start;
 
-// AJM - does it matter if there is an extra comma space at end of string?		strOut.delete(strOut.length()-2, strOut.length());
+		if (right(strOut, 2) == ', ' ) strOut.delete(strOut.length()-2, strOut.length());
 		strOut.append(' ] }');
 
 		if (count) {
