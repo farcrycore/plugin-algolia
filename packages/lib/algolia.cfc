@@ -580,6 +580,12 @@ component {
 		if (not this.typeSetup[arguments.stObject.typename]) {
 			return false;
 		}
+		
+		/*
+		if (StructKeyExists(arguments.stObject, 'status') && arguments.stObject.status != 'approved') {
+			return false;
+		}
+		*/
 
 		var indexableTypes = getIndexableTypes();
 		return structKeyExists(indexableTypes, arguments.stObject.typename);
@@ -744,11 +750,7 @@ component {
 					
 				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
 				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
-					stResult["typename"] = arguments.stObject.typename;
-					stResult["count"] = 0;
-					stResult["builtToDate"] = builtToDate;	
-
-					return 	stResult;
+					break;
 				}
 					
 					stContent = oContent.getData(objectid=qContent.objectid);
