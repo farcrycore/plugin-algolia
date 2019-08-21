@@ -748,12 +748,12 @@ component {
 			for (indexName in indexableTypes[qContent.typename]) {
 				if (qContent.operation eq "updated") {
 					
-				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
-				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
-					break;
-				}
-					
 					stContent = oContent.getData(objectid=qContent.objectid);
+					
+					// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+					if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
+						break;
+					}
 
 					if (
 						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
