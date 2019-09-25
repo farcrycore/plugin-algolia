@@ -1103,6 +1103,25 @@ component {
 		);
 	}
 
+	public struct function getFacets(string indexName=application.fapi.getConfig("algolia", "indexName"), required string facet, string params="", string facetQuery="") {
+		var data = {
+			"maxFacetHits" = 100
+		};
+
+		if (len(arguments.params)) {
+			data["params"] = arguments.params;
+		}
+		if (len(arguments.facetQuery)) {
+			data["facetQuery"] = arguments.facetQuery;
+		}
+
+		return makeRequest(
+			method = "POST",
+			resource = "/indexes/#arguments.indexName#/facets/#arguments.facet#/query",
+			data = serializeJSON(data)
+		);
+	}
+
 	public struct function getSettings(string indexName=application.fapi.getConfig("algolia", "indexName")) {
 
 		return makeRequest(
