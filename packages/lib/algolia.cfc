@@ -1094,12 +1094,30 @@ component {
 	}
 
 	public struct function customBatch(required string data) {
-		var indexName = application.fapi.getConfig("algolia", "indexName");
 
 		return makeRequest(
 			method = "POST",
 			resource = "/indexes/*/batch",
 			data = arguments.data
+		);
+	}
+
+	public struct function deleteBy(string indexName=application.fapi.getConfig("algolia", "indexName"), string facetFilters, string filters) {
+		var q = {
+			"params" = ""
+		};
+
+		if (structKeyExists(arguments, "filters")) {
+			q.params = "filters=#arguments.filters#"; 
+		}
+		if (structKeyExists(arguments, "facetFilters")) {
+			q.params = "facetFilters=#arguments.facetFilters#"; 
+		}
+
+		return makeRequest(
+			method = "POST",
+			resource = "/indexes/#arguments.indexName#/deleteByQuery",
+			data = serializeJSON(q)
 		);
 	}
 
