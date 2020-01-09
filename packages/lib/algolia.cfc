@@ -1038,6 +1038,7 @@ component {
 		var apiKey = "";
 		var applicationID = application.fapi.getConfig("algolia", "applicationID");
 		var subdomain = lcase(applicationID);
+		var result = '';
 
 		if (arguments.method eq "") {
 			if (len(arguments.data)) {
@@ -1067,7 +1068,7 @@ component {
 			resourceURL &= (find("?", resourceURL) ? "&" : "?") & URLEncodedFormat(item) & "=" & URLEncodedFormat(arguments.stQuery[item]);
 		}
 
-		cfhttp(method=arguments.method, url="https://#subdomain#.algolia.net/1#resourceURL#", timeout=arguments.timeout) {
+		cfhttp(method=arguments.method, url="https://#subdomain#.algolia.net/1#resourceURL#", timeout=arguments.timeout, result="result") {
 			cfhttpparam(type="header", name="X-Algolia-API-Key", value=apiKey);
 			cfhttpparam(type="header", name="X-Algolia-Application-Id", value=applicationID);
 
@@ -1077,29 +1078,29 @@ component {
 			}
 		}
 
-		if (not reFindNoCase("^20. ",cfhttp.statuscode) and not reFindNoCase("^404 ",cfhttp.statuscode)) {
-			throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
+		if (not reFindNoCase("^20. ",result.statuscode) and not reFindNoCase("^404 ",result.statuscode)) {
+			throw(message="Error accessing Algolia API: #result.statuscode#", detail="#serializeJSON({
 				'resource' = arguments.resource,
 				'method' = arguments.method,
 				'apiKeyType' = apiKeyType,
 				'query_string' = arguments.stQuery,
 				'body' = arguments.data,
 				'resource' = 'https://#subdomain#.algolia.net/v1' & resourceURL,
-				'response' = isjson(cfhttp.filecontent.toString()) ? deserializeJSON(cfhttp.filecontent.toString()) : cfhttp.filecontent.toString(),
-				'responseHeaders' = duplicate(cfhttp.responseHeader)
+				'response' = isjson(result.filecontent.toString()) ? deserializeJSON(result.filecontent.toString()) : result.filecontent.toString(),
+				'responseHeaders' = duplicate(result.responseHeader)
 			})#");
 		}
-		if (reFindNoCase("^404 ",cfhttp.statuscode)) {
+		if (reFindNoCase("^404 ",result.statuscode)) {
 			if (arguments.throwOn404) {
-				throw(message="Error accessing Algolia API: #cfhttp.statuscode#", detail="#serializeJSON({
+				throw(message="Error accessing Algolia API: #result.statuscode#", detail="#serializeJSON({
 					'resource' = arguments.resource,
 					'method' = arguments.method,
 					'apiKeyType' = apiKeyType,
 					'query_string' = arguments.stQuery,
 					'body' = arguments.data,
 					'resource' = 'https://#subdomain#.algolia.net/v1' & resourceURL,
-					'response' = isjson(cfhttp.filecontent.toString()) ? deserializeJSON(cfhttp.filecontent.toString()) : cfhttp.filecontent.toString(),
-					'responseHeaders' = duplicate(cfhttp.responseHeader)
+					'response' = isjson(result.filecontent.toString()) ? deserializeJSON(cfhresultttp.filecontent.toString()) : result.filecontent.toString(),
+					'responseHeaders' = duplicate(result.responseHeader)
 				})#");
 			}
 			else {
@@ -1107,7 +1108,7 @@ component {
 			}
 		}
 
-		return deserializeJSON(cfhttp.filecontent.toString());
+		return deserializeJSON(result.filecontent.toString());
 	}
 
 	public struct function customBatch(required string data) {
