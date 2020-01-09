@@ -663,20 +663,21 @@ component {
 					(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stObject))
 				)
 			) {
-				
-				// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+
 				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
-					stResult["typename"] = arguments.stObject.typename;
-					stResult["count"] = 0;
-					stResult["builtToDate"] = builtToDate;	
-	
-					return 	stResult;
+					// remove draft record
+					// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+					strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+					strOut.append('{ "objectID": "');
+					strOut.append(arguments.stObject.objectid);
+					strOut.append('" } }, ');
+					builtToDate = now();
+				} else {
+					strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+					processObject(indexName, strOut, arguments.stObject);
+					strOut.append(' }, ');
+					builtToDate = arguments.stObject.datetimeLastUpdated;
 				}
-				
-				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
-				processObject(indexName, strOut, arguments.stObject);
-				strOut.append(' }, ');
-				builtToDate = arguments.stObject.datetimeLastUpdated;
 			}
 			else if (arguments.operation eq "deleted") {
 				strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
@@ -743,19 +744,23 @@ component {
 				if (qContent.operation eq "updated") {
 					
 					stContent = oContent.getData(objectid=qContent.objectid);
-					
-					// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
-					if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
-						break;
-					}
 
 					if (
 						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
 						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
 					) {
-						strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
-						processObject(indexName, strOut, stContent);
-						strOut.append(' }, ');
+						if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
+							// remove draft record
+							// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+							strOut.append('{ "action": "deleteObject", "indexName":"#indexName#", "body": ');
+							strOut.append('{ "objectID": "');
+							strOut.append(qContent.objectid);
+							strOut.append('" } }, ');
+						} else {
+							strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
+							processObject(indexName, strOut, stContent);
+							strOut.append(' }, ');
+						}
 					}
 				}
 				else if (qContent.operation eq "deleted") {
