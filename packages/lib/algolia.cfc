@@ -64,6 +64,7 @@ component {
 		var i = 0;
 
 		stResult.value[arguments.indexName] = {
+			"id": arguments.indexName eq application.fapi.getConfig("algolia", "indexName") ? "default" : reReplaceNoCase(arguments.indexName, "^#application.fapi.getConfig("algolia", "indexName")#_", ""),
 			"replica": false
 		};
 
@@ -787,6 +788,11 @@ component {
 
 	public void function processObject(required string indexName, required any out, required struct stObject) {
 		var oType = application.fapi.getContentType(arguments.stObject.typename);
+
+		if (structKeyExists(oType, "processObject#this.indexConfig[arguments.indexName].id#")) {
+			return oType["processObject#this.indexConfig[arguments.indexName].id#"](argumentCollection=arguments);
+		}
+
 		var stFields = getExpandedConfig()[arguments.indexName].types[arguments.stObject.typename];
 		var stSettings = getExpandedConfig()[arguments.indexName].settings;
 
