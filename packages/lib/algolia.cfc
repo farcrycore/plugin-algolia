@@ -1128,6 +1128,17 @@ component {
 		);
 	}
 
+	public struct function clearObjects(string indexName=application.fapi.getConfig("algolia", "indexName")) {
+		var q = {
+			"params" = ""
+		};
+
+		return makeRequest(
+			method = "POST",
+			resource = "/indexes/#arguments.indexName#/clear"
+		);
+	}
+
 	public struct function getFacets(string indexName=application.fapi.getConfig("algolia", "indexName"), required string facet, string params="", string facetQuery="") {
 		var data = {
 			"maxFacetHits" = 100
