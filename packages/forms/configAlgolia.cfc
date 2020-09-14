@@ -20,6 +20,9 @@ component extends="farcry.core.packages.forms.forms" key="algolia" displayName="
 		ftSeq="5" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Index Config"
 		ftHint="See the Algolia plugin README.md for details.";
 
+	property name="bEnableEvent" type="boolean" required="false" default="true"
+		ftSeq="6" ftWizardStep="" ftFieldset="Algolia Search" ftLabel="Enable Event"
+		ftHint="Use to disable event in algolia plugin (Check to Enable)";
 
 	public boolean function hasAmbiguousTimestamps(required string typename) {
 		return queryExecute("
