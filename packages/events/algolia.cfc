@@ -25,6 +25,11 @@
 			<cfreturn />
 		</cfif>
 
+		<!--- do nothing if config is not set to enable events --->
+		<cfif Not application.fapi.getConfig("algolia", "bEnableEvent")>
+			<cfreturn />
+		</cfif>
+
 		<!--- update index --->
 		<cfif application.fc.lib.algolia.isIndexable(stProps)>
 			<cfset structappend(stProps, application.fapi.getContentObject(typename=stProps.typename, objectid=stProps.objectid), false) />
@@ -38,6 +43,11 @@
 		<cfargument name="stObject" type="struct" required="true" hint="The object" />
 		<cfargument name="user" type="string" required="true" />
 		<cfargument name="auditNote" type="string" required="true" />
+
+		<!--- do nothing if config is not set to enable events --->
+		<cfif Not application.fapi.getConfig("algolia", "bEnableEvent")>
+			<cfreturn />
+		</cfif>
 
 		<cfif application.fc.lib.algolia.isIndexable(arguments.stObject)>
 			<cfset application.fc.lib.algolia.importIntoIndex(stObject=arguments.stObject, operation="deleted") />
