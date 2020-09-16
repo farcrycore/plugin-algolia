@@ -1042,16 +1042,9 @@ component {
 			subdomain &= "-dsn";
 		}
 
-		if (arguments.method eq "GET" and reFind("^/indexes/[^/]+(/query|/queries|/facets|/browse)?", arguments.resource)) {
-			// query request
-			apiKey = application.fapi.getConfig("algolia", "queryAPIKey");
-			apiKeyType = "search";
-		}
-		else {
-			// admin request
-			apiKey = application.fapi.getConfig("algolia", "adminAPIKey");
-			apiKeyType = "admin";
-		}
+		// always use the admin key
+		apiKey = application.fapi.getConfig("algolia", "adminAPIKey");
+		apiKeyType = "admin";
 
 		for (item in arguments.stQuery) {
 			resourceURL &= (find("?", resourceURL) ? "&" : "?") & URLEncodedFormat(item) & "=" & URLEncodedFormat(arguments.stQuery[item]);
