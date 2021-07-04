@@ -30,7 +30,7 @@ component extends="farcry.core.packages.forms.forms" key="algolia" displayName="
 			FROM 		#arguments.typename#
 			GROUP BY	datetimeLastUpdated
 			HAVING		count(*) > 1
-		", { }, { datasource=application.dsn_read }).recordcount gt 1;
+		", { }, { datasource=application.dsn_read }).recordcount gt 0;
 	}
 
 	public void function disambiguateTimestamps(required string typename) {
