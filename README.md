@@ -207,6 +207,18 @@ You can do this by adding a function to the content type named `processObject[In
 This function is passed the same arguments as the `processObject` function in
 the `algolia` library.
 
+Note that in these cases, the config structure for the relevant type can be left empty. For example :
+
+```coldfusion
+    <cfset application.fapi.setConfig("algolia", "indexConfig", serializeJSON({
+        "types": {
+            "dmHTML": {}
+        },
+        "settings": {  
+        }
+    }), true) />
+```
+
 ### Complex example with special cases
 
 ```coldfusion
