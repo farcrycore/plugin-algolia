@@ -44,7 +44,8 @@ component {
 
 	public struct function validateConfig(
 		string indexName=application.fapi.getConfig("algolia", "indexName"),
-		any indexConfig=application.fapi.getConfig("algolia", "indexConfig")
+		any indexConfig=application.fapi.getConfig("algolia", "indexConfig"),
+		string indexKey="default"
 		) 
 	{
 		if (isSimpleValue(arguments.indexConfig)) {
@@ -81,7 +82,7 @@ component {
 
 		// validate config.types
 		if (structKeyExists(arguments.indexConfig, "types")) {
-			stSub = validateConfigTypes(arguments.indexConfig.types);
+			stSub = validateConfigTypes(arguments.indexKey, arguments.indexConfig.types);
 			stResult.valid = stResult.valid AND stSub.valid;
 			arrayAppend(stResult.details, stSub.details, true);
 			stResult.value[arguments.indexName]["types"] = stSub.value;
@@ -90,7 +91,8 @@ component {
 		// process replicas and alternate indexes
 		if (structKeyExists(arguments.indexConfig, "alternateIndexes")) {
 			for (key in arguments.indexConfig.alternateIndexes) {
-				stSub = validateConfig(arguments.indexName & "_" & key, arguments.indexConfig.alternateIndexes[key]);
+
+				stSub = validateConfig(arguments.indexName & "_" & key, arguments.indexConfig.alternateIndexes[key], key);
 				stResult.valid = stResult.valid AND stSub.valid;
 				for (i=1; i<=arrayLen(stSub.details); i++) {
 					arrayAppend(stResult.details, key & "." & stSub.details[i]);
@@ -316,7 +318,7 @@ component {
 		return stResult;
 	}
 
-	private struct function validateConfigTypes(required any types) {
+	private struct function validateConfigTypes(required string indexKey, required any types) {
 		if (not isStruct(arguments.types)) {
 			return { valid: false, details: ["config.types is not a struct"], value: {} };
 		}
@@ -326,7 +328,7 @@ component {
 		var stResult = { valid: true, details: [], value: {} };
 
 		for (typename in arguments.types) {
-			stTypeValidation = validateConfigType(typename, arguments.types[typename]);
+			stTypeValidation = validateConfigType(arguments.indexKey, typename, arguments.types[typename]);
 			stResult.valid = stResult.valid AND stTypeValidation.valid;
 			arrayAppend(stResult.details, stTypeValidation.details, true);
 			stResult.value[typename] = stTypeValidation.value;
@@ -335,7 +337,7 @@ component {
 		return stResult;
 	}
 
-	private struct function validateConfigType(required string typename, required any typeConfig) {
+	private struct function validateConfigType(required string indexKey, required string typename, required any typeConfig) {
 		var stResult = { valid: true, details: [], value: {} };
 
 		// typename must be valid
@@ -364,22 +366,27 @@ component {
 
 		// if no properties were defined, add all of the valid ones
 		if (structIsEmpty(arguments.typeConfig)) {
-			for (property in application.stCOAPI[typename].stProps) {
-				stResult.value[property] = {
-					"from": property
-				};
 
-				if (structKeyExists(oType, "process#property#")) {
-					stResult.value[property]["processFn"] = "process#property#";
-				}
-				else if (structKeyExists(this, "process#application.fapi.getPropertyMetadata(arguments.typename, property, "ftType", "none")#")) {
-					stResult.value[property]["type"] = application.fapi.getPropertyMetadata(arguments.typename, property, "ftType", "none");
-				}
-				else  if (structKeyExists(this, "process#application.fapi.getPropertyMetadata(arguments.typename, property, "type", "none")#")) {
-					stResult.value[property]["type"] = application.fapi.getPropertyMetadata(arguments.typename, property, "type", "none");
-				}
-				else {
-					structDelete(stResult.value, property);
+			if (structKeyExists(oType, "processObject#arguments.indexKey#")){
+				// Custom in Type Function
+			} else {
+				for (property in application.stCOAPI[typename].stProps) {
+					stResult.value[property] = {
+						"from": property
+					};
+
+					if (structKeyExists(oType, "process#property#")) {
+						stResult.value[property]["processFn"] = "process#property#";
+					}
+					else if (structKeyExists(this, "process#application.fapi.getPropertyMetadata(arguments.typename, property, "ftType", "none")#")) {
+						stResult.value[property]["type"] = application.fapi.getPropertyMetadata(arguments.typename, property, "ftType", "none");
+					}
+					else  if (structKeyExists(this, "process#application.fapi.getPropertyMetadata(arguments.typename, property, "type", "none")#")) {
+						stResult.value[property]["type"] = application.fapi.getPropertyMetadata(arguments.typename, property, "type", "none");
+					}
+					else {
+						structDelete(stResult.value, property);
+					}
 				}
 			}
 		}
