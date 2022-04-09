@@ -671,10 +671,21 @@ component {
 					(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stObject))
 				)
 			) {
-				strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
-				processObject(indexName, strOut, arguments.stObject);
-				strOut.append(' }, ');
-				builtToDate = arguments.stObject.datetimeLastUpdated;
+
+				if (StructKeyExists(arguments.stObject, 'status') AND arguments.stObject['status'] != 'approved') {
+					// remove draft record
+					// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+					strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
+					strOut.append('{ "objectID": "');
+					strOut.append(arguments.stObject.objectid);
+					strOut.append('" } }, ');
+					builtToDate = now();
+				} else {
+					strOut.append('{ "action": "addObject", "indexName": "#indexName#", "body": ');
+					processObject(indexName, strOut, arguments.stObject);
+					strOut.append(' }, ');
+					builtToDate = arguments.stObject.datetimeLastUpdated;
+				}
 			}
 			else if (arguments.operation eq "deleted") {
 				strOut.append('{ "action": "deleteObject", "indexName": "#indexName#", "body": ');
@@ -739,15 +750,25 @@ component {
 		for (row in qContent) {
 			for (indexName in indexableTypes[qContent.typename]) {
 				if (qContent.operation eq "updated") {
+					
 					stContent = oContent.getData(objectid=qContent.objectid);
 
 					if (
 						(structKeyExists(oContent, "isIndexable") and oContent.isIndexable(indexName=indexname, stObject=stContent)) or
 						(not structKeyExists(oContent, "isIndexable") and isIndexable(indexName=indexname, stObject=stContent))
 					) {
-						strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
-						processObject(indexName, strOut, stContent);
-						strOut.append(' }, ');
+						if (StructKeyExists(stContent, 'status') AND stContent['status'] != 'approved') {
+							// remove draft record
+							// Approved only - draft records do not get updated to approved; new records added to index each time object goes to draft
+							strOut.append('{ "action": "deleteObject", "indexName":"#indexName#", "body": ');
+							strOut.append('{ "objectID": "');
+							strOut.append(qContent.objectid);
+							strOut.append('" } }, ');
+						} else {
+							strOut.append('{ "action": "addObject", "indexName":"#indexName#", "body": ');
+							processObject(indexName, strOut, stContent);
+							strOut.append(' }, ');
+						}
 					}
 				}
 				else if (qContent.operation eq "deleted") {
@@ -756,7 +777,7 @@ component {
 					strOut.append(qContent.objectid);
 					strOut.append('" } }, ');
 				}
-			}
+			} //indexName
 
 			if (
 				strOut.length() * ((qContent.currentrow+1) / qContent.currentrow) gt arguments.requestSize or
@@ -766,10 +787,11 @@ component {
 				count = qContent.currentrow;
 				break;
 			}
-		}
+		} // row
+		
 		processingTime += getTickCount() - start;
 
-		strOut.delete(strOut.length()-2, strOut.length());
+		if (right(strOut, 2) == ', ') strOut.delete(strOut.length()-2, strOut.length());
 		strOut.append(' ] }');
 
 		if (count) {
