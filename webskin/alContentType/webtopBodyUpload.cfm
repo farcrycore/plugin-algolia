@@ -120,6 +120,11 @@
 				}
 			});
 		}
+
+
+		if (window.location.href.indexOf("autorun") > -1) {
+			window.onload = startUpload();
+		}
 	</script>
 </cfoutput>
 
